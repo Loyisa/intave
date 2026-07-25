@@ -14,6 +14,7 @@ package de.jpx3.intave.block.physics;
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.annotate.Nullable;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.user.User;
 import org.bukkit.Location;
@@ -26,9 +27,9 @@ public interface BlockPhysic {
 
   // Called from #doBlockCollisions
   default @Nullable Motion entityInside(
-    User user,
-    Location location, Location from,
-    double motionX, double motionY, double motionZ
+	  User user,
+    BlockPosition location, Location from,
+	  double motionX, double motionY, double motionZ
   ) {
     return null;
   }

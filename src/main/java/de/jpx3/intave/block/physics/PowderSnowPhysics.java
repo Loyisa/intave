@@ -3,6 +3,7 @@ package de.jpx3.intave.block.physics;
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.block.access.VolatileBlockAccess;
 import de.jpx3.intave.block.type.MaterialSearch;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.meta.MovementMetadata;
@@ -23,7 +24,7 @@ final class PowderSnowPhysics implements BlockPhysic {
   }
 
   @Override
-  public Motion entityInside(User user, Location location, Location from, double motionX, double motionY, double motionZ) {
+  public Motion entityInside(User user, BlockPosition location, Location from, double motionX, double motionY, double motionZ) {
     MovementMetadata movementData = user.meta().movement();
     Material block = VolatileBlockAccess.typeAccess(
       user, user.player().getWorld(),

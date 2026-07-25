@@ -24,12 +24,11 @@ import de.jpx3.intave.share.link.WrapperConverter;
 import de.jpx3.intave.user.User;
 import io.netty.buffer.ByteBuf;
 import it.unimi.dsi.fastutil.doubles.DoubleSet;
+import net.minecraft.world.phys.Vec3;
 import org.bukkit.Location;
 import org.bukkit.util.Vector;
 
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 
 import static de.jpx3.intave.codec.JsonStreamCodecs.*;
 import static de.jpx3.intave.share.ClientMath.floor;
@@ -472,6 +471,22 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return (minZ + maxZ) / 2.0;
   }
 
+  public Position center() {
+    return new Position(centerX(), centerY(), centerZ());
+  }
+
+  public double sizeX() {
+    return maxX - minX;
+  }
+
+  public double sizeY() {
+    return maxY - minY;
+  }
+
+  public double sizeZ() {
+    return maxZ - minZ;
+  }
+
   /**
    * Returns the average length of the edges of the bounding box.
    */
@@ -481,11 +496,6 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     double d2 = this.maxZ - this.minZ;
     return (d0 + d1 + d2) / 3.0D;
   }
-
-  // position
-//  public String toString() {
-//    return "" + (minX + (maxX - minX) / 2d) + "," + (minY + (maxY - minY) / 2d) + "," + (minZ + (maxZ - minZ) / 2d);
-//  }
 
   // width and height
   public String toString() {
@@ -752,6 +762,148 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return new BoundingBox(minX, minY, minZ, maxX, this.maxY + expansionY, maxZ);
   }
 
+  public BlockPositions blockPositionsBetween() {
+    int minX = floor(this.minX);
+    int minY = floor(this.minY);
+    int minZ = floor(this.minZ);
+    int maxX = floor(this.maxX);
+    int maxY = floor(this.maxY);
+    int maxZ = floor(this.maxZ);
+
+    int sizeX = maxX - minX + 1;
+    int sizeY = maxY - minY + 1;
+    int sizeZ = maxZ - minZ + 1;
+    int volume = sizeX * sizeY * sizeZ;
+
+    return () -> new Iterator<MutableBlockPosition>() {
+      private final MutableBlockPosition cursor = new MutableBlockPosition(minX, minY, minZ);
+      private int index;
+
+      @Override
+      public boolean hasNext() {
+        return this.index < volume;
+      }
+
+      @Override
+      public MutableBlockPosition next() {
+        if (!hasNext()) {
+          throw new IllegalStateException("No more positions");
+        }
+        cursor.setX(cursor.x() + 1);
+        if (cursor.x() > maxX) {
+          cursor.setX(minX);
+          cursor.setY(cursor.y() + 1);
+          if (cursor.y() > maxY) {
+            cursor.setY(minY);
+            cursor.setZ(cursor.z() + 1);
+          }
+        }
+        this.index++;
+        return cursor;
+      }
+    };
+  }
+
+  public BlockPositions blockPositionsBetweenDirectional(Motion motion) {
+    return blockPositionBetweenDirectional(minX, minY, minZ, maxX, maxY, maxZ, motion);
+  }
+
+  public static BlockPositions blockPositionBetweenDirectional(
+    double myMinX, double myMinY, double myMinZ,
+    double myMaxX, double myMaxY, double myMaxZ,
+    Motion motion
+  ) {
+    int minX = floor(myMinX);
+    int minY = floor(myMinY);
+    int minZ = floor(myMinZ);
+    int maxX = floor(myMaxX);
+    int maxY = floor(myMaxY);
+    int maxZ = floor(myMaxZ);
+
+    int shortSizeX = maxX - minX;
+    int shortSizeY = maxY - minY;
+    int shortSizeZ = maxZ - minZ;
+
+    int dominantX = motion.motionX >= 0.0 ? minX : maxX;
+    int dominantY = motion.motionY >= 0.0 ? minY : maxY;
+    int dominantZ = motion.motionZ >= 0.0 ? minZ : maxZ;
+
+    List<Direction.Axis> axisStepOrder = Direction.axisStepOrder(motion);
+    Direction.Axis thirdAxis = axisStepOrder.get(0);
+    Direction.Axis secondAxis = axisStepOrder.get(1);
+    Direction.Axis firstAxis = axisStepOrder.get(2);
+
+    Direction firstAxisDirection = motion.partialMotionIn(firstAxis) >= 0.0 ? firstAxis.positive() : firstAxis.negative();
+    Direction secondAxisDirection = motion.partialMotionIn(secondAxis) >= 0.0 ? secondAxis.positive() : secondAxis.negative();
+    Direction thirdAxisDirection = motion.partialMotionIn(thirdAxis) >= 0.0 ? thirdAxis.positive() : thirdAxis.negative();
+
+    int sizeFirstAxis = firstAxis.select(shortSizeX, shortSizeY, shortSizeZ);
+    int sizeSecondAxis = secondAxis.select(shortSizeX, shortSizeY, shortSizeZ);
+    int sizeThirdAxis = thirdAxis.select(shortSizeX, shortSizeY, shortSizeZ);
+
+    return () -> new Iterator<MutableBlockPosition>() {
+      private final MutableBlockPosition cursor = new MutableBlockPosition(0, 0, 0);
+      private int firstIndex;
+      private int secondIndex;
+      private int thirdIndex;
+      private boolean end;
+      private final int firstDirX = firstAxisDirection.normalX();
+      private final int firstDirY = firstAxisDirection.normalY();
+      private final int firstDirZ = firstAxisDirection.normalZ();
+      private final int secondDirX = secondAxisDirection.normalX();
+      private final int secondDirY = secondAxisDirection.normalY();
+      private final int secondDirZ = secondAxisDirection.normalZ();
+      private final int thirdDirX = thirdAxisDirection.normalX();
+      private final int thirdDirY = thirdAxisDirection.normalY();
+      private final int thirdDirZ = thirdAxisDirection.normalZ();
+
+      @Override
+      public boolean hasNext() {
+        return !end;
+      }
+
+      @Override
+      public MutableBlockPosition next() {
+        if (!hasNext()) {
+          throw new NoSuchElementException();
+        }
+
+        int currentX = dominantX + firstIndex * firstDirX + secondIndex * secondDirX + thirdIndex * thirdDirX;
+        int currentY = dominantY + firstIndex * firstDirY + secondIndex * secondDirY + thirdIndex * thirdDirY;
+        int currentZ = dominantZ + firstIndex * firstDirZ + secondIndex * secondDirZ + thirdIndex * thirdDirZ;
+
+        cursor.set(currentX, currentY, currentZ);
+
+        if (thirdIndex < sizeThirdAxis) {
+          thirdIndex++;
+        } else if (secondIndex < sizeSecondAxis) {
+          secondIndex++;
+          thirdIndex = 0;
+        } else if (firstIndex < sizeFirstAxis) {
+          firstIndex++;
+          thirdIndex = 0;
+          secondIndex = 0;
+        } else {
+          end = true;
+        }
+        return cursor;
+      }
+    };
+  }
+
+  public boolean intersectsWithCubeAt(MutableBlockPosition position) {
+    return intersectsWith(
+      position.x(), position.y(), position.z(),
+      position.x() + 1, position.y() + 1, position.z() + 1
+    );
+  }
+
+  public static Optional<Vec3> clip(
+    double p_368264_, double p_369692_, double p_366920_, double p_361220_, double p_363635_, double p_362259_, Vec3 p_361125_, Vec3 p_369663_
+  ) {
+    return Optional.empty();
+  }
+
   public BoundingBox move(Motion motion) {
     return move(motion.motionX, motion.motionY, motion.motionZ);
   }
@@ -785,7 +937,7 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return MathHelper.formatDouble(this.minX, 3) + ", " + MathHelper.formatDouble(this.minY, 3) + ", " + MathHelper.formatDouble(this.minZ, 3) + " -> " + MathHelper.formatDouble(this.maxX, 3) + ", " + MathHelper.formatDouble(this.maxY, 3) + ", " + MathHelper.formatDouble(this.maxZ, 3);
   }
 
-  public boolean func_181656_b() {
+  public boolean isAnyNaN() {
     return Double.isNaN(this.minX) || Double.isNaN(this.minY) || Double.isNaN(this.minZ) || Double.isNaN(this.maxX) || Double.isNaN(this.maxY) || Double.isNaN(this.maxZ);
   }
 
@@ -829,19 +981,12 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
   @Override
   public int hashCode() {
     int result;
-    long temp;
-    temp = Double.doubleToLongBits(minX);
-    result = (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(minY);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(minZ);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(maxX);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(maxY);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
-    temp = Double.doubleToLongBits(maxZ);
-    result = 31 * result + (int) (temp ^ (temp >>> 32));
+	  result = Double.hashCode(minX);
+	  result = 31 * result + Double.hashCode(minY);
+	  result = 31 * result + Double.hashCode(minZ);
+	  result = 31 * result + Double.hashCode(maxX);
+	  result = 31 * result + Double.hashCode(maxY);
+	  result = 31 * result + Double.hashCode(maxZ);
     return result;
   }
 }

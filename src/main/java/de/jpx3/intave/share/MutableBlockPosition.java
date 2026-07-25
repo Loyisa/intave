@@ -54,8 +54,27 @@ public final class MutableBlockPosition {
 		this.z = z;
 	}
 
+	public void set(int currentX, int currentY, int currentZ) {
+		this.x = currentX;
+		this.y = currentY;
+		this.z = currentZ;
+	}
+
 	public BlockPosition toBlockPosition() {
 		return new BlockPosition(this.x, this.y, this.z);
+	}
+
+	public long asLong() {
+		return ((long) this.x & 0x3FFFFFF) << 38 | ((long) this.y & 0xFFF) << 26 | ((long) this.z & 0x3FFFFFF);
+	}
+
+	@Override
+	public String toString() {
+		return "MutableBlockPosition{" +
+			"x=" + this.x +
+			", y=" + this.y +
+			", z=" + this.z +
+			'}';
 	}
 
 	@Override

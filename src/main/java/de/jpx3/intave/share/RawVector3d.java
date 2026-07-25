@@ -22,7 +22,10 @@ import java.lang.reflect.InvocationTargetException;
 
 public class RawVector3d {
   public static final RawVector3d ZERO = new RawVector3d(0.0D, 0.0D, 0.0D);
-  final double x, y, z;
+	public static final RawVector3d X_AXIS = new RawVector3d(1.0D, 0.0D, 0.0D);
+  public static final RawVector3d Y_AXIS = new RawVector3d(0.0D, 1.0D, 0.0D);
+  public static final RawVector3d Z_AXIS = new RawVector3d(0.0D, 0.0D, 1.0D);
+	final double x, y, z;
 
   public RawVector3d(double x, double y, double z) {
     if (x == -0.0D) {
@@ -198,6 +201,10 @@ public class RawVector3d {
     }
   }
 
+  public double dot(RawVector3d other) {
+    return this.x * other.x + this.y * other.y + this.z * other.z;
+  }
+
   /**
    * Returns a new vector with z value equal to the second parameter, along the line between this vector and the passed
    * in vector, or null if not possible.
@@ -232,6 +239,26 @@ public class RawVector3d {
 
   public double z() {
     return z;
+  }
+
+  public RawVector3d reversed() {
+    return new RawVector3d(-this.x, -this.y, -this.z);
+  }
+
+  public RawVector3d furthestCorner() {
+    double crossX = Math.abs(RawVector3d.X_AXIS.dot(this));
+    double crossY = Math.abs(RawVector3d.Y_AXIS.dot(this));
+    double crossZ = Math.abs(RawVector3d.Z_AXIS.dot(this));
+    int stepX = this.x() < 0.0 ? -1 : 1;
+    int stepY = this.y() < 0.0 ? -1 : 1;
+    int stepZ = this.z() < 0.0 ? -1 : 1;
+    if (crossX <= crossY && crossX <= crossZ) {
+      return new RawVector3d(-stepX, -stepZ, stepY);
+    } else if (crossY <= crossZ) {
+      return new RawVector3d(stepZ, -stepY, -stepX);
+    } else {
+      return new RawVector3d(-stepY, stepX, -stepZ);
+    }
   }
 
   public static RawVector3d fromNative(Object vec3d) {

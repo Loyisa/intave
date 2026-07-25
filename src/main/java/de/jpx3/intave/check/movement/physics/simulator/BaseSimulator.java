@@ -569,7 +569,7 @@ class BaseSimulator extends Simulator {
 
 //    if (!user.meta().protocol().newBlockEntityIntersectionLogic()) {
     double limit = 1.0E-7D;
-    int blockPositionStartX = floor(entityBoundingBox.minX + limit);
+      int blockPositionStartX = floor(entityBoundingBox.minX + limit);
       int blockPositionStartY = floor(entityBoundingBox.minY + limit);
       int blockPositionStartZ = floor(entityBoundingBox.minZ + limit);
       int blockPositionEndX = floor(entityBoundingBox.maxX - limit);
@@ -580,12 +580,11 @@ class BaseSimulator extends Simulator {
       for (int x = blockPositionStartX; x <= blockPositionEndX; x++) {
         for (int y = blockPositionStartY; y <= blockPositionEndY; y++) {
           for (int z = blockPositionStartZ; z <= blockPositionEndZ; z++) {
-            Location location = new Location(world, x, y, z);
-            Material material = VolatileBlockAccess.typeAccess(user, world, x, y, z);
+            BlockPosition blockPosition = new BlockPosition(x, y, z);
+            Material material = VolatileBlockAccess.typeAccess(user, blockPosition);
             Motion collisionMotion = BlockPhysics.entityInside(
-              user, material,
-              location, blockCollisionFrom,
-              motion.motionX, motion.motionY, motion.motionZ
+              user, material, blockPosition,
+              blockCollisionFrom, motion
             );
             if (collisionMotion != null) {
               motion.setTo(collisionMotion);

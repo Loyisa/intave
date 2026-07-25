@@ -161,6 +161,10 @@ public final class Position implements Serializable, Cloneable {
 		return add(vector.getX(), vector.getY(), vector.getZ());
 	}
 
+	public Position add(RawVector3d vector) {
+		return add(vector.x(), vector.y(), vector.z());
+	}
+
 	public Position add(Motion motion) {
 		return add(motion.motionX(), motion.motionY(), motion.motionZ());
 	}

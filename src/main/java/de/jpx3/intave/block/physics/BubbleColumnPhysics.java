@@ -14,6 +14,7 @@ package de.jpx3.intave.block.physics;
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.block.access.VolatileBlockAccess;
 import de.jpx3.intave.block.variant.BlockVariant;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.meta.MovementMetadata;
@@ -38,11 +39,11 @@ final class BubbleColumnPhysics implements BlockPhysic {
   }
 
   @Override
-  public Motion entityInside(User user, Location location, Location from, double motionX, double motionY, double motionZ) {
+  public Motion entityInside(User user, BlockPosition blockPosition, Location from, double motionX, double motionY, double motionZ) {
     ProtocolMetadata protocol = user.meta().protocol();
     if (protocol.aquaticUpdate()) {
-      boolean water = VolatileBlockAccess.fluidAccess(user, location.clone().add(0, 1, 0)).isOfWater();
-      BlockVariant variant = VolatileBlockAccess.variantAccess(user, location);
+      boolean water = VolatileBlockAccess.fluidAccess(user, blockPosition.above()).isOfWater();
+      BlockVariant variant = VolatileBlockAccess.variantAccess(user, blockPosition);
       boolean downwards = variant.propertyOf("drag");
       if (water) {
         return enterBubbleColumn(user, downwards, motionX, motionY, motionZ);

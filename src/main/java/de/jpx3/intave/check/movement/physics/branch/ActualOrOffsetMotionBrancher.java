@@ -15,7 +15,7 @@ import de.jpx3.intave.check.movement.physics.config.MovementConfiguration;
 
 import java.util.List;
 
-public final class ActualOrOffsetMotionBrancher extends MovementSearchBrancher {
+final class ActualOrOffsetMotionBrancher extends MovementSearchBrancher {
 	@Override
 	public void branch(MovementSearchInput input, MovementSearchBranch inputBranch, List<MovementSearchBranch> outputBranches) {
 		if (!input.actualMotionBranchNecessary()) {

@@ -14,17 +14,19 @@ package de.jpx3.intave.block.physics;
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.annotate.Nullable;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.user.User;
 import org.bukkit.Location;
 import org.bukkit.Material;
 
+import java.util.EnumMap;
 import java.util.HashMap;
 import java.util.Map;
 
 public final class BlockPhysics {
   private static final MinecraftVersion THIS_MINECRAFT_VERSION = MinecraftVersion.current();
-  private static final Map<Material, BlockPhysic> materialLookup = new HashMap<>();
+  private static final Map<Material, BlockPhysic> materialLookup = new EnumMap<>(Material.class);
 
   public static void setup() {
     setup(THIS_MINECRAFT_VERSION);
@@ -66,12 +68,16 @@ public final class BlockPhysics {
   public static Motion entityInside(
     User user,
     Material material,
-    Location location, Location from,
-    double motionX, double motionY, double motionZ
+    BlockPosition blockPosition,
+    Location from,
+    Motion motionInput
   ) {
     BlockPhysic collision = physicLookup(material);
     if (collision != null) {
-      return collision.entityInside(user, location, from, motionX, motionY, motionZ);
+      return collision.entityInside(
+        user, blockPosition, from,
+        motionInput.motionX, motionInput.motionY, motionInput.motionZ
+      );
     }
     return null;
   }
