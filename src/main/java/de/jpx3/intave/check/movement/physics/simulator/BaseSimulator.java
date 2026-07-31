@@ -57,9 +57,9 @@ class BaseSimulator extends Simulator {
     SimulationEnvironment environment
   ) {
     baseMotion = baseMotion.copy();
+    updateAquatics(user, baseMotion, environment, false);
     moveOutOfBlocks(user, baseMotion, environment);
     handleSneakInWater(user, baseMotion, environment);
-    updateAquatics(user, baseMotion, environment, false);
     simulateMotionClamp(user, baseMotion, environment);
     return baseMotion;
   }
@@ -137,7 +137,9 @@ class BaseSimulator extends Simulator {
 
   private void handleSneakInWater(User user, Motion motion, SimulationEnvironment environment) {
     ProtocolMetadata protocol = user.meta().protocol();
-    if (protocol.aquaticUpdate() && environment.isSneaking() && environment.inWater()) {
+    boolean affectedByFluids = protocol.protocolVersion() < ProtocolMetadata.VER_1_17 || !user.meta().abilities().flying();
+    boolean sneakingAndInWater = environment.isSneaking() && environment.inWater();
+    if (protocol.aquaticUpdate() && affectedByFluids && sneakingAndInWater) {
       motion.motionY -= 0.04F;
     }
   }
