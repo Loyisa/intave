@@ -444,6 +444,11 @@ public final class ImmutableSimulationEnvironmentView implements SimulationEnvir
 	}
 
 	@Override
+	public void setInWeb(boolean inWeb) {
+		throw new UnsupportedOperationException("Cannot modify unmodifiable view");
+	}
+
+	@Override
 	public void resetInWeb() {
 		throw new UnsupportedOperationException("Cannot modify unmodifiable view");
 	}

@@ -590,6 +590,11 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	}
 
 	@Override
+	public void setInWeb(boolean inWeb) {
+		throw immutableCopyException();
+	}
+
+	@Override
 	public void resetInWeb() {
 		throw immutableCopyException();
 	}
@@ -1105,9 +1110,7 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 		other.setInWater(inWater);
 		other.setInLava(inLava);
 		other.setLavaDepth(lavaDepth);
-		if (!inWeb) {
-			other.resetInWeb();
-		}
+		other.setInWeb(inWeb);
 		other.setLastOnGround(lastOnGround);
 		applyFallDistanceTo(other);
 		other.setPushedByEntity(pushedByEntity);

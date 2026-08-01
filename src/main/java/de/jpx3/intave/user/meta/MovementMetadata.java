@@ -642,6 +642,11 @@ public final class MovementMetadata implements SimulationEnvironment {
   }
 
   @Override
+  public void setInWeb(boolean inWeb) {
+    this.inWeb = inWeb;
+  }
+
+  @Override
   public void resetInWeb() {
     inWeb = false;
   }

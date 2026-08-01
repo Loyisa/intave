@@ -587,10 +587,15 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   }
 
   @Override
-  public void resetInWeb() {
+  public void setInWeb(boolean inWeb) {
     inWebOverridden = true;
-    inWeb = false;
-    deferredMutations.add(SimulationEnvironment::resetInWeb);
+    this.inWeb = inWeb;
+    deferredMutations.add(environment -> environment.setInWeb(inWeb));
+  }
+
+  @Override
+  public void resetInWeb() {
+    setInWeb(false);
   }
 
   @Override
@@ -1305,8 +1310,8 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
     if (lavaDepthOverridden) {
       other.setLavaDepth(lavaDepth);
     }
-    if (inWebOverridden && !inWeb) {
-      other.resetInWeb();
+    if (inWebOverridden) {
+      other.setInWeb(inWeb);
     }
     if (fallDistanceOverridden && fallDistance == 0.0) {
       other.resetFallDistance();

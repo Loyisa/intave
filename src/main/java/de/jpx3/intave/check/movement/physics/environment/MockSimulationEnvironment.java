@@ -232,6 +232,7 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   public void setSleeping(boolean sleeping) {
   }
 
+  @Override
   public void setInWeb(boolean inWeb) {
     this.inWeb = inWeb;
   }

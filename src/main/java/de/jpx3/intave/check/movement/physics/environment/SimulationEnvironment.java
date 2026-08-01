@@ -281,6 +281,7 @@ public interface SimulationEnvironment {
   double lavaDepth();
   void setLavaDepth(double lavaDepth);
   boolean inWeb();
+  void setInWeb(boolean inWeb);
   void resetInWeb();
   boolean onGround();
 

@@ -83,6 +83,31 @@ final class MutableSimulationEnvironmentViewTest {
   }
 
   @Test
+  void webStateIsIsolatedAndCommitted() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    SimulationEnvironment enteringWeb = delegate.mutableView();
+
+    enteringWeb.setInWeb(true);
+
+    assertFalse(delegate.inWeb());
+    assertTrue(enteringWeb.inWeb());
+
+    enteringWeb.commitTo(delegate);
+
+    assertTrue(delegate.inWeb());
+
+    SimulationEnvironment leavingWeb = delegate.mutableView();
+    leavingWeb.resetInWeb();
+
+    assertTrue(delegate.inWeb());
+    assertFalse(leavingWeb.inWeb());
+
+    leavingWeb.commitTo(delegate);
+
+    assertFalse(delegate.inWeb());
+  }
+
+  @Test
   void lavaDepthIsIsolatedCommittedAndResetWithLavaState() {
     MockSimulationEnvironment delegate = new MockSimulationEnvironment();
     SimulationEnvironment enteringLava = delegate.mutableView();

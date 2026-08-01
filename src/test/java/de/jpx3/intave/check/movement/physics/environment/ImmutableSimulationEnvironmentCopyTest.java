@@ -176,6 +176,7 @@ final class ImmutableSimulationEnvironmentCopyTest {
     assertEquals(new Vector(0.8, 0.75, 0.8), target.motionMultiplier());
     assertTrue(target.inWater());
     assertTrue(target.inLava());
+    assertTrue(target.inWeb());
     assertEquals(0.35, target.lavaDepth(), 0.0);
     assertEquals(4.0, target.fallDistance(), 0.0);
     assertEquals(1, target.ticks(MoveMetric.ALIVE));
