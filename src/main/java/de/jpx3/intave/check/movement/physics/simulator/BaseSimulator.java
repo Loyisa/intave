@@ -616,7 +616,7 @@ class BaseSimulator extends Simulator {
     environment.aquaticUpdateLavaReset();
 
     if (!user.meta().protocol().newBlockEntityIntersectionLogic()) {
-    double limit = 1.0E-7D;
+      double limit = 1.0E-7D;
       int blockPositionStartX = floor(entityBoundingBox.minX + limit);
       int blockPositionStartY = floor(entityBoundingBox.minY + limit);
       int blockPositionStartZ = floor(entityBoundingBox.minZ + limit);

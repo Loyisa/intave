@@ -65,12 +65,10 @@ public final class BlockPhysics {
 
   @Nullable
   public static Motion entityInside(
-    User user,
-    Material material,
+    User user, Material material,
     SimulationEnvironment environment,
     BlockPosition blockPosition,
-    Position from,
-    Motion motionInput,
+    Position from, Motion motionInput,
     boolean insideBlockOrTooFast
   ) {
     BlockPhysic collision = physicLookup(material);
