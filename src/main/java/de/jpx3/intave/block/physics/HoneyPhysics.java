@@ -18,7 +18,6 @@ import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
 import de.jpx3.intave.user.User;
-import de.jpx3.intave.user.meta.MovementMetadata;
 import org.bukkit.Material;
 
 import java.util.List;
@@ -33,10 +32,26 @@ final class HoneyPhysics implements BlockPhysic {
 
   @Override
   public Motion entityInside(User user, SimulationEnvironment environment, BlockPosition location, Position from, Motion motion, boolean insideBlockOrTooFast) {
-    if (doBlockPhysics(environment, location, motion.motionY)) {
-      return updateMovement(user, motion.motionX, motion.motionY, motion.motionZ);
+    boolean blockEffectsAfterGravity = user.meta().protocol().newBlockEntityIntersectionLogic();
+    double motionYBeforeGravity = blockEffectsAfterGravity
+      ? getOldDeltaY(motion.motionY)
+      : motion.motionY;
+    if (doBlockPhysics(environment, location, motionYBeforeGravity)) {
+      return updateMovement(
+        environment,
+        motion.motionX, motionYBeforeGravity, motion.motionZ,
+        blockEffectsAfterGravity
+      );
     }
     return null;
+  }
+
+  private static double getOldDeltaY(double deltaY) {
+    return deltaY / 0.98F + 0.08D;
+  }
+
+  private static double getNewDeltaY(double deltaY) {
+    return (deltaY - 0.08D) * 0.98F;
   }
 
   private boolean doBlockPhysics(
@@ -57,15 +72,23 @@ final class HoneyPhysics implements BlockPhysic {
     }
   }
 
-  private Motion updateMovement(User user, double motionX, double motionY, double motionZ) {
-    MovementMetadata movementData = user.meta().movement();
-    movementData.artificialFallDistance = 0.0F;
+  private Motion updateMovement(
+    SimulationEnvironment environment,
+    double motionX, double motionY, double motionZ,
+    boolean blockEffectsAfterGravity
+  ) {
+    double throttledMotionY = blockEffectsAfterGravity
+      ? getNewDeltaY(-0.05D)
+      : -0.05D;
+    Motion updatedMotion;
     if (motionY < -0.13D) {
       double d0 = -0.05D / motionY;
-      return new Motion(motionX * d0, -0.05D, motionZ * d0);
+      updatedMotion = new Motion(motionX * d0, throttledMotionY, motionZ * d0);
     } else {
-      return new Motion(motionX, -0.05D, motionZ);
+      updatedMotion = new Motion(motionX, throttledMotionY, motionZ);
     }
+    environment.resetFallDistance();
+    return updatedMotion;
   }
 
   @Override
