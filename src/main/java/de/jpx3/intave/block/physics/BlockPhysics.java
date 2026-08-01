@@ -16,8 +16,8 @@ import de.jpx3.intave.annotate.Nullable;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
+import de.jpx3.intave.share.Position;
 import de.jpx3.intave.user.User;
-import org.bukkit.Location;
 import org.bukkit.Material;
 
 import java.util.EnumMap;
@@ -69,14 +69,15 @@ public final class BlockPhysics {
     Material material,
     SimulationEnvironment environment,
     BlockPosition blockPosition,
-    Location from,
-    Motion motionInput
+    Position from,
+    Motion motionInput,
+    boolean insideBlockOrTooFast
   ) {
     BlockPhysic collision = physicLookup(material);
     if (collision != null) {
       return collision.entityInside(
         user, environment, blockPosition, from,
-        motionInput.motionX, motionInput.motionY, motionInput.motionZ
+        motionInput, insideBlockOrTooFast
       );
     }
     return null;

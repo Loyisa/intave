@@ -15,6 +15,8 @@ import de.jpx3.intave.IntaveControl;
 import de.jpx3.intave.adapter.MinecraftVersions;
 import de.jpx3.intave.block.access.VolatileBlockAccess;
 import de.jpx3.intave.block.fluid.Fluids;
+import de.jpx3.intave.block.inside.BlockGetter;
+import de.jpx3.intave.block.inside.EntityMovement;
 import de.jpx3.intave.block.physics.BlockPhysics;
 import de.jpx3.intave.block.physics.BlockProperties;
 import de.jpx3.intave.block.shape.BlockShape;
@@ -24,6 +26,7 @@ import de.jpx3.intave.check.movement.physics.environment.Pose;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.diagnostic.timings.Timings;
 import de.jpx3.intave.executor.Synchronizer;
+import de.jpx3.intave.math.MathHelper;
 import de.jpx3.intave.module.Modules;
 import de.jpx3.intave.module.tracker.entity.Entity;
 import de.jpx3.intave.player.Effects;
@@ -37,12 +40,13 @@ import de.jpx3.intave.user.meta.ProtocolMetadata;
 import de.jpx3.intave.user.meta.ViolationMetadata;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
-import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.entity.Player;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static de.jpx3.intave.check.movement.physics.environment.MoveMetric.EXTERNAL_VELOCITY;
 import static de.jpx3.intave.check.movement.physics.environment.MoveMetric.IN_LAVA;
@@ -534,7 +538,7 @@ class BaseSimulator extends Simulator {
     }
 
     if (user.meta().protocol().newBlockEntityIntersectionLogic()) {
-      simulateApplyEffectsFromBlocks(user, environment, motion, boundingBox);
+      applyEffectsFromBlocks(user, environment, motion);
     }
 
     if (clientData.combatUpdate()
@@ -564,8 +568,7 @@ class BaseSimulator extends Simulator {
     Motion motion, BoundingBox entityBoundingBox
   ) {
     Player player = user.player();
-    World world = player.getWorld();
-    MetadataBundle meta = user.meta();
+	  MetadataBundle meta = user.meta();
     ProtocolMetadata clientData = meta.protocol();
 
     double positionX = environment.positionX();
@@ -612,7 +615,7 @@ class BaseSimulator extends Simulator {
 
     environment.aquaticUpdateLavaReset();
 
-//    if (!user.meta().protocol().newBlockEntityIntersectionLogic()) {
+    if (!user.meta().protocol().newBlockEntityIntersectionLogic()) {
     double limit = 1.0E-7D;
       int blockPositionStartX = floor(entityBoundingBox.minX + limit);
       int blockPositionStartY = floor(entityBoundingBox.minY + limit);
@@ -621,7 +624,7 @@ class BaseSimulator extends Simulator {
       int blockPositionEndY = floor(entityBoundingBox.maxY - limit);
       int blockPositionEndZ = floor(entityBoundingBox.maxZ - limit);
 
-      Location blockCollisionFrom = new Location(world, positionX, positionY, positionZ);
+      Position blockCollisionFrom = Position.of(positionX, positionY, positionZ);
       for (int x = blockPositionStartX; x <= blockPositionEndX; x++) {
         for (int y = blockPositionStartY; y <= blockPositionEndY; y++) {
           for (int z = blockPositionStartZ; z <= blockPositionEndZ; z++) {
@@ -629,7 +632,7 @@ class BaseSimulator extends Simulator {
             Material material = VolatileBlockAccess.typeAccess(user, blockPosition);
             Motion collisionMotion = BlockPhysics.entityInside(
               user, material, environment, blockPosition,
-              blockCollisionFrom, motion
+              blockCollisionFrom, motion, true
             );
             if (collisionMotion != null) {
               motion.setTo(collisionMotion);
@@ -637,7 +640,7 @@ class BaseSimulator extends Simulator {
           }
         }
       }
-//    }
+    }
 
     if (clientData.protocolVersion() >= VER_1_14 && environment.pose() != Pose.FALL_FLYING) {
       int soulSandModifier = Enchantments.resolveSoulSpeedModifier(player);
@@ -649,50 +652,99 @@ class BaseSimulator extends Simulator {
     }
   }
 
-  private void simulateApplyEffectsFromBlocks(
-    User user, SimulationEnvironment environment, Motion motion, BoundingBox boundingBox
-  ) {
-    Position from = environment.verifiedLastPosition();
+  private void applyEffectsFromBlocks(
+    User user, SimulationEnvironment environment, Motion motion
+    ) {
+    SimulationResult result = environment.simulationResult();
+    Position from = environment.lastPosition();
     Position to = environment.position();
-    Motion move = from.motionTo(to);
+    Motion intermittentResult = result.intermittentResult();
+    List<EntityMovement> movements = Collections.singletonList(EntityMovement.of(from, to, intermittentResult));
+    checkInsideBlocks(user, environment, motion, movements);
+  }
 
-    SimulationResult simulationResult = environment.simulationResult();
-    if (simulationResult == null || simulationResult.isValid()) {
-      return;
-    }
-    Motion crazyMotion = simulationResult.intermittentResult();
-
+  private void checkInsideBlocks(
+    User user, SimulationEnvironment environment,
+    Motion motion, List<EntityMovement> entityMovements
+  ) {
     LongSet visitedBlocks = new LongOpenHashSet();
 
-		int i = 16;
-    if (crazyMotion != null && move.lengthSquared() > 0.0) {
-      for (Direction.Axis axis : Direction.axisStepOrder(crazyMotion)) {
-        double motionPartial = crazyMotion.partialMotionIn(axis);
-        if (motionPartial != 0.0) {
-	        Position positionPartial = from.relative(axis.positive(), motionPartial);
-	        i -= checkInsideBlocks(user, environment, from, positionPartial, visitedBlocks, i);
-					from = positionPartial;
+    for (EntityMovement entityMovement : entityMovements) {
+      Position from = entityMovement.from();
+      Position to = entityMovement.to();
+      Motion move = to.subtractToMotion(from);
+
+      int i = 16;
+      if (entityMovement.axisDependentOriginalMovement().isPresent() && move.lengthSquared() > 0.0) {
+        for (Direction.Axis axis : Direction.axisStepOrder(entityMovement.axisDependentOriginalMovement().get())) {
+          double motionPartial = move.partialMotionIn(axis);
+          if (motionPartial != 0.0) {
+            Position partialPos = from.relative(axis.positive(), motionPartial);
+            i -= checkInsideBlocks(user, environment, motion, from, partialPos, visitedBlocks, i);
+            from = partialPos;
+          }
         }
+      } else {
+        i -= checkInsideBlocks(user, environment, motion, entityMovement.from(), to, visitedBlocks, 16);
       }
-    } else {
-			i -= checkInsideBlocks(user, environment, from, to, visitedBlocks, i);
+      if (i <= 0) {
+        checkInsideBlocks(user, environment, motion, to, to, visitedBlocks, 1);
+      }
     }
-		if (i <= 0) {
-			checkInsideBlocks(user, environment, from, to, visitedBlocks, 1);
-		}
   }
 
   private int checkInsideBlocks(
     User user,
 		SimulationEnvironment environment,
+    Motion motion,
     Position from, Position to,
-    LongSet visitedBlocks,
+    LongSet hasVisited,
     int limit
   ) {
 	  BoundingBox box = BoundingBox.fromPosition(user, environment, to).shrink(0.00001f);
-		boolean furtherThanOneBlock = from.distanceSquared(to) > (0.9999900000002526 * 0.9999900000002526);
+		boolean furtherThanOneBlock = from.distanceSquared(to) > MathHelper.square(0.9999900000002526);
+    boolean debug = false;
+    AtomicInteger atomicinteger = new AtomicInteger();
+    BlockGetter.forEachBlockIntersectedBetween(
+      from, to, box,
+      (position, scannedBlocks) -> {
+        if (scannedBlocks >= limit) {
+          return false;
+        } else {
+          atomicinteger.set(scannedBlocks);
+          Material type = VolatileBlockAccess.typeAccess(user, position);
+	        if (type != Material.AIR) {
+	          boolean flag2 = true; // only false for powdered snow in crazy edge cases
 
-    return 0;
+	          if (hasVisited.add(position.asLong())) {
+	            boolean insideBlockOrTooFast = furtherThanOneBlock || box.intersects(position);
+              Motion newMotion = BlockPhysics.entityInside(
+                user, type, environment, position.toBlockPosition(),
+                from, motion,
+                insideBlockOrTooFast
+              );
+              if (newMotion != null) {
+                motion.setTo(newMotion);
+              }
+            }
+	        }
+	        return true;
+        }
+      }
+    );
+
+    return atomicinteger.get() + 1;
+  }
+
+  private boolean collidedWithShapeMovingFrom(
+    User user,
+    SimulationEnvironment environment,
+    Position from, Position to,
+    BlockShape collisionShape
+  ) {
+    BoundingBox fromBox = BoundingBox.fromPosition(user, environment, from);
+    Motion move = to.subtractToMotion(from);
+    return fromBox.collidedAlongVector(move, collisionShape);
   }
 
   private void simulateWaterAfter(

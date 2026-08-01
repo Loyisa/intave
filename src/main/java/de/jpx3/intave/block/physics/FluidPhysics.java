@@ -19,9 +19,9 @@ import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
+import de.jpx3.intave.share.Position;
 import de.jpx3.intave.user.User;
 import de.jpx3.intave.user.meta.ProtocolMetadata;
-import org.bukkit.Location;
 import org.bukkit.Material;
 
 import java.util.ArrayList;
@@ -42,7 +42,7 @@ final class FluidPhysics implements BlockPhysic {
   }
 
   @Override
-  public Motion entityInside(User user, SimulationEnvironment environment, BlockPosition location, Location from, double motionX, double motionY, double motionZ) {
+  public Motion entityInside(User user, SimulationEnvironment environment, BlockPosition location, Position from, Motion motion, boolean insideBlockOrTooFast) {
     ProtocolMetadata protocol = user.meta().protocol();
     if (protocol.aquaticUpdate()) {
       Fluid fluid = VolatileBlockAccess.fluidAccess(user, location);

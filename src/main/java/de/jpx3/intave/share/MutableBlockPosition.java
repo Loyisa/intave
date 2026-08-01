@@ -12,6 +12,14 @@
 package de.jpx3.intave.share;
 
 public final class MutableBlockPosition {
+	public static final int PACKED_HORIZONTAL_LENGTH = 1 + ClientMath.calculateLogBaseTwo(ClientMath.roundUpToPowerOfTwo(30000000));
+	public static final int PACKED_Y_LENGTH = 64 - 2 * PACKED_HORIZONTAL_LENGTH;
+	private static final long PACKED_X_MASK = (1L << PACKED_HORIZONTAL_LENGTH) - 1L;
+	private static final long PACKED_Y_MASK = (1L << PACKED_Y_LENGTH) - 1L;
+	private static final long PACKED_Z_MASK = (1L << PACKED_HORIZONTAL_LENGTH) - 1L;
+	private static final int Z_OFFSET = PACKED_Y_LENGTH;
+	private static final int X_OFFSET = PACKED_Y_LENGTH + PACKED_HORIZONTAL_LENGTH;
+
 	private int x;
 	private int y;
 	private int z;
@@ -65,7 +73,14 @@ public final class MutableBlockPosition {
 	}
 
 	public long asLong() {
-		return ((long) this.x & 0x3FFFFFF) << 38 | ((long) this.y & 0xFFF) << 26 | ((long) this.z & 0x3FFFFFF);
+		return asLong(this.x(), this.y(), this.z());
+	}
+
+	public static long asLong(int p_121883_, int p_121884_, int p_121885_) {
+		long i = 0L;
+		i |= (p_121883_ & PACKED_X_MASK) << X_OFFSET;
+		i |= (p_121884_ & PACKED_Y_MASK);
+		return i | (p_121885_ & PACKED_Z_MASK) << Z_OFFSET;
 	}
 
 	@Override

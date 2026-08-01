@@ -13,7 +13,6 @@ package de.jpx3.intave.share;
 
 import de.jpx3.intave.klass.Lookup;
 import de.jpx3.intave.math.MathHelper;
-import de.jpx3.intave.share.link.WrapperConverter;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.util.Vector;
@@ -241,28 +240,12 @@ public class RawVector3d {
     return z;
   }
 
-  public RawVector3d reversed() {
-    return new RawVector3d(-this.x, -this.y, -this.z);
+  public double lengthSqr() {
+    return this.x * this.x + this.y * this.y + this.z * this.z;
   }
 
-  public RawVector3d furthestCorner() {
-    double crossX = Math.abs(RawVector3d.X_AXIS.dot(this));
-    double crossY = Math.abs(RawVector3d.Y_AXIS.dot(this));
-    double crossZ = Math.abs(RawVector3d.Z_AXIS.dot(this));
-    int stepX = this.x() < 0.0 ? -1 : 1;
-    int stepY = this.y() < 0.0 ? -1 : 1;
-    int stepZ = this.z() < 0.0 ? -1 : 1;
-    if (crossX <= crossY && crossX <= crossZ) {
-      return new RawVector3d(-stepX, -stepZ, stepY);
-    } else if (crossY <= crossZ) {
-      return new RawVector3d(stepZ, -stepY, -stepX);
-    } else {
-      return new RawVector3d(-stepY, stepX, -stepZ);
-    }
-  }
-
-  public static RawVector3d fromNative(Object vec3d) {
-    return WrapperConverter.vectorFromVec3D(vec3d);
+  public static RawVector3d fromBukkit(Vector subtract) {
+    return new RawVector3d(subtract.getX(), subtract.getY(), subtract.getZ());
   }
 
   public String toString() {

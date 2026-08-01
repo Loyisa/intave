@@ -18,6 +18,7 @@ import de.jpx3.intave.block.fluid.Fluid;
 import de.jpx3.intave.block.physics.BlockProperties;
 import de.jpx3.intave.block.physics.MaterialMagic;
 import de.jpx3.intave.block.shape.BlockShape;
+import de.jpx3.intave.block.tick.ShulkerBox;
 import de.jpx3.intave.block.type.BlockTypeAccess;
 import de.jpx3.intave.check.movement.physics.config.MovementConfiguration;
 import de.jpx3.intave.check.movement.physics.simulator.BoatSimulator.Status;
@@ -542,6 +543,10 @@ public interface SimulationEnvironment {
 
   default int highestShulkerY() {
     return Integer.MIN_VALUE;
+  }
+
+  default @Nullable ShulkerBox shulkerBoxAt(int posX, int posY, int posZ) {
+    return user().meta().movement().shulkerBoxAt(posX, posY, posZ);
   }
 
   default int pistonMotionToleranceRemaining() {

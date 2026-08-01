@@ -734,6 +734,7 @@ public final class MovementMetadata implements SimulationEnvironment {
     }
   }
 
+  @Override
   public ShulkerBox shulkerBoxAt(int posX, int posY, int posZ) {
     if (shulkerData.isEmpty()) {
       return null;

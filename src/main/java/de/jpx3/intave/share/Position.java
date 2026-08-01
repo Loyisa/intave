@@ -177,6 +177,10 @@ public final class Position implements Serializable, Cloneable {
 		return subtract(position.x, position.y, position.z);
 	}
 
+	public Motion subtractToMotion(Position position) {
+		return new Motion(this.x - position.x, this.y - position.y, this.z - position.z);
+	}
+
 	public Vector subtract(Vector vector) {
 		return subtract(vector.getX(), vector.getY(), vector.getZ());
 	}

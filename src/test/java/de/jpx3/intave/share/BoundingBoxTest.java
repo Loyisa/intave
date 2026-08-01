@@ -13,8 +13,7 @@ package de.jpx3.intave.share;
 
 import org.junit.jupiter.api.Test;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,5 +48,42 @@ class BoundingBoxTest {
 			seen.add(position.toBlockPosition());
 		}
 		assertEquals(125, seen.size());
+	}
+
+	@Test
+	void blockPositionsBetweenDirectionalNormalizesReversedCorners() {
+		BlockPositions positions = BoundingBox.blockPositionBetweenDirectional(
+			1, 1, 1,
+			0, 0, 0,
+			Motion.of(1, 0, 0)
+		);
+		Set<BlockPosition> seen = new HashSet<>();
+		for (MutableBlockPosition position : positions) {
+			seen.add(position.toBlockPosition());
+		}
+		assertEquals(8, seen.size());
+	}
+
+	@Test
+	void blockPositionsBetweenDirectionalUsesClientAxisOrder() {
+		BlockPositions positions = BoundingBox.blockPositionBetweenDirectional(
+			0, 0, 0,
+			1, 1, 1,
+			Motion.of(1, 0, 0)
+		);
+		List<BlockPosition> actual = new ArrayList<>();
+		for (MutableBlockPosition position : positions) {
+			actual.add(position.toBlockPosition());
+		}
+		assertEquals(Arrays.asList(
+			new BlockPosition(0, 0, 0),
+			new BlockPosition(0, 0, 1),
+			new BlockPosition(1, 0, 0),
+			new BlockPosition(1, 0, 1),
+			new BlockPosition(0, 1, 0),
+			new BlockPosition(0, 1, 1),
+			new BlockPosition(1, 1, 0),
+			new BlockPosition(1, 1, 1)
+		), actual);
 	}
 }

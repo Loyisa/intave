@@ -172,7 +172,7 @@ public final class InteractionRaytrace extends MetaCheck<InteractionRaytrace.Int
       int variant = VolatileBlockAccess.variantIndexAccess(user, placementLocation);
 
       boolean raytraceCollidesWithPosition = typeUsedInHand.isBlock() && Collision.playerInImaginaryBlock(
-        user, world,
+        user, user.meta().movement(), world,
         blockX, blockY, blockZ,
         typeUsedInHand, 0
       );
@@ -926,7 +926,8 @@ public final class InteractionRaytrace extends MetaCheck<InteractionRaytrace.Int
             boolean replace = BlockInteractionAccess.replacedOnPlacement(world, player, new com.comphenix.protocol.wrappers.BlockPosition(raycastLocation.toVector()));
             Location placementLocation = replace ? raycastLocation : raycastLocation.clone().add(raycastResult.sideHit.directionVector().convertToBukkitVec());
             boolean raytraceCollidesWithPosition = material.isBlock() && Collision.playerInImaginaryBlock(
-              user, world, placementLocation.getBlockX(), placementLocation.getBlockY(), placementLocation.getBlockZ(),
+              user, user.meta().movement(), world,
+              placementLocation.getBlockX(), placementLocation.getBlockY(), placementLocation.getBlockZ(),
               material, dat
             );
             if (raytraceCollidesWithPosition) {

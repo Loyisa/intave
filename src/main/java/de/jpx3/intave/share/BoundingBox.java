@@ -277,6 +277,10 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return x >= this.minX && x < this.maxX && y >= this.minY && y < this.maxY && z >= this.minZ && z < this.maxZ;
   }
 
+  public boolean contains(Position position) {
+    return contains(position.getX(), position.getY(), position.getZ());
+  }
+
   /**
    * Returns a bounding box expanded by the specified vector (if negative numbers are given it will shrink). Args: x, y,
    * z
@@ -450,6 +454,13 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return maxX > this.minX && minX < this.maxX &&
       maxY > this.minY && minY < this.maxY &&
       maxZ > this.minZ && minZ < this.maxZ;
+  }
+
+  public boolean intersects(MutableBlockPosition position) {
+    return intersectsWith(
+      position.x(), position.y(), position.z(),
+      position.x() + 1, position.y() + 1, position.z() + 1
+    );
   }
 
   /**
@@ -743,6 +754,69 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     }
   }
 
+  public Optional<Position> clip(Position from, Position to) {
+    return clip(minX, minY, minZ, maxX, maxY, maxZ, from, to);
+  }
+
+  public static Optional<Position> clip(
+    double minX, double minY, double minZ,
+    double maxX, double maxY, double maxZ,
+    Position from, Position to
+  ) {
+    double[] t = new double[]{1.0};
+    double dX = to.getX() - from.getX();
+    double dY = to.getY() - from.getY();
+    double dZ = to.getZ() - from.getZ();
+    Direction direction = getDirection(minX, minY, minZ, maxX, maxY, maxZ, from, t, null, dX, dY, dZ);
+    if (direction == null) {
+      return Optional.empty();
+    } else {
+      double scale = t[0];
+      return Optional.of(from.add(dX * scale, dY * scale, dZ * scale));
+    }
+  }
+
+  private static Direction getDirection(
+    double minX, double minY, double minZ,
+    double maxX, double maxY, double maxZ,
+    Position from, double[] t, Direction direction, double dX, double dY, double dZ
+  ) {
+    if (dX > 0.0000001) {
+      direction = clipPoint(t, direction, dX, dY, dZ, minX, minY, maxY, minZ, maxZ, Direction.WEST, from.getX(), from.getY(), from.getZ());
+    } else if (dX < -0.0000001) {
+      direction = clipPoint(t, direction, dX, dY, dZ, maxX, minY, maxY, minZ, maxZ, Direction.EAST, from.getX(), from.getY(), from.getZ());
+    }
+
+    if (dY > 0.0000001) {
+      direction = clipPoint(t, direction, dY, dZ, dX, minY, minZ, maxZ, minX, maxX, Direction.DOWN, from.getY(), from.getZ(), from.getX());
+    } else if (dY < -0.0000001) {
+      direction = clipPoint(t, direction, dY, dZ, dX, maxY, minZ, maxZ, minX, maxX, Direction.UP, from.getY(), from.getZ(), from.getX());
+    }
+
+    if (dZ > 0.0000001) {
+      direction = clipPoint(t, direction, dZ, dX, dY, minZ, minX, maxX, minY, maxY, Direction.NORTH, from.getZ(), from.getX(), from.getY());
+    } else if (dZ < -0.0000001) {
+      direction = clipPoint(t, direction, dZ, dX, dY, maxZ, minX, maxX, minY, maxY, Direction.SOUTH, from.getZ(), from.getX(), from.getY());
+    }
+    return direction;
+  }
+
+  private static Direction clipPoint(
+    double[] t, Direction direction, double d0, double d1, double d2,
+    double minA, double minB, double maxB, double minC, double maxC,
+    Direction faceDirection, double vecAComp, double vecBComp, double vecCComp
+  ) {
+    double scale = (minA - vecAComp) / d0;
+    double newB = vecBComp + scale * d1;
+    double newC = vecCComp + scale * d2;
+    if (0.0 < scale && scale < t[0] && minB - 0.0000001 < newB && newB < maxB + 0.0000001 && minC - 0.0000001 < newC && newC < maxC + 0.0000001) {
+      t[0] = scale;
+      return faceDirection;
+    } else {
+      return direction;
+    }
+  }
+
   public double nearestDistanceTo(RawVector3d fieldPoint) {
     RawVector3d rawVector3D = nearestPointTo(fieldPoint);
     return rawVector3D.distanceTo(fieldPoint);
@@ -763,42 +837,55 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
   }
 
   public BlockPositions blockPositionsBetween() {
-    int minX = floor(this.minX);
-    int minY = floor(this.minY);
-    int minZ = floor(this.minZ);
-    int maxX = floor(this.maxX);
-    int maxY = floor(this.maxY);
-    int maxZ = floor(this.maxZ);
+    return blockPositionBetween(
+//      Math.min(minX, maxX), Math.min(minY, maxY), Math.min(minZ, maxZ),
+//      Math.max(minX, maxX), Math.max(minY, maxY), Math.max(minZ, maxZ)
+      minX, minY, minZ,
+      maxX, maxY, maxZ
+    );
+  }
 
-    int sizeX = maxX - minX + 1;
-    int sizeY = maxY - minY + 1;
-    int sizeZ = maxZ - minZ + 1;
-    int volume = sizeX * sizeY * sizeZ;
+  public static BlockPositions blockPositionBetween(
+    double myMinX, double myMinY, double myMinZ,
+    double myMaxX, double myMaxY, double myMaxZ
+  ) {
+    int minX = floor(myMinX);
+    int minY = floor(myMinY);
+    int minZ = floor(myMinZ);
+    int maxX = floor(myMaxX);
+    int maxY = floor(myMaxY);
+    int maxZ = floor(myMaxZ);
 
     return () -> new Iterator<MutableBlockPosition>() {
-      private final MutableBlockPosition cursor = new MutableBlockPosition(minX, minY, minZ);
-      private int index;
+      private final MutableBlockPosition cursor = new MutableBlockPosition(0, 0, 0);
+      private int xIndex;
+      private int yIndex;
+      private int zIndex;
+      private boolean end;
 
       @Override
       public boolean hasNext() {
-        return this.index < volume;
+        return !end;
       }
 
       @Override
       public MutableBlockPosition next() {
         if (!hasNext()) {
-          throw new IllegalStateException("No more positions");
+          throw new NoSuchElementException();
         }
-        cursor.setX(cursor.x() + 1);
-        if (cursor.x() > maxX) {
-          cursor.setX(minX);
-          cursor.setY(cursor.y() + 1);
-          if (cursor.y() > maxY) {
-            cursor.setY(minY);
-            cursor.setZ(cursor.z() + 1);
-          }
+        cursor.set(minX + xIndex, minY + yIndex, minZ + zIndex);
+        if (zIndex < maxZ - minZ) {
+          zIndex++;
+        } else if (yIndex < maxY - minY) {
+          yIndex++;
+          zIndex = 0;
+        } else if (xIndex < maxX - minX) {
+          xIndex++;
+          yIndex = 0;
+          zIndex = 0;
+        } else {
+          end = true;
         }
-        this.index++;
         return cursor;
       }
     };
@@ -813,12 +900,18 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     double myMaxX, double myMaxY, double myMaxZ,
     Motion motion
   ) {
-    int minX = floor(myMinX);
-    int minY = floor(myMinY);
-    int minZ = floor(myMinZ);
-    int maxX = floor(myMaxX);
-    int maxY = floor(myMaxY);
-    int maxZ = floor(myMaxZ);
+    int firstX = floor(myMinX);
+    int firstY = floor(myMinY);
+    int firstZ = floor(myMinZ);
+    int secondX = floor(myMaxX);
+    int secondY = floor(myMaxY);
+    int secondZ = floor(myMaxZ);
+    int minX = Math.min(firstX, secondX);
+    int minY = Math.min(firstY, secondY);
+    int minZ = Math.min(firstZ, secondZ);
+    int maxX = Math.max(firstX, secondX);
+    int maxY = Math.max(firstY, secondY);
+    int maxZ = Math.max(firstZ, secondZ);
 
     int shortSizeX = maxX - minX;
     int shortSizeY = maxY - minY;
@@ -829,9 +922,9 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     int dominantZ = motion.motionZ >= 0.0 ? minZ : maxZ;
 
     List<Direction.Axis> axisStepOrder = Direction.axisStepOrder(motion);
-    Direction.Axis thirdAxis = axisStepOrder.get(0);
+    Direction.Axis firstAxis = axisStepOrder.get(0);
     Direction.Axis secondAxis = axisStepOrder.get(1);
-    Direction.Axis firstAxis = axisStepOrder.get(2);
+    Direction.Axis thirdAxis = axisStepOrder.get(2);
 
     Direction firstAxisDirection = motion.partialMotionIn(firstAxis) >= 0.0 ? firstAxis.positive() : firstAxis.negative();
     Direction secondAxisDirection = motion.partialMotionIn(secondAxis) >= 0.0 ? secondAxis.positive() : secondAxis.negative();
@@ -955,6 +1048,43 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
 
   public void makeOriginBox() {
     this.originBox = true;
+  }
+
+  /*
+
+    public boolean collidedAlongVector(Vec3 p_367135_, List<AABB> p_368156_) {
+        Vec3 vec3 = this.getCenter();
+        Vec3 vec31 = vec3.add(p_367135_);
+
+        for (AABB aabb : p_368156_) {
+            AABB aabb1 = aabb.inflate(this.getXsize() * 0.5 - 1.0E-7, this.getYsize() * 0.5 - 1.0E-7, this.getZsize() * 0.5 - 1.0E-7);
+            if (aabb1.contains(vec31) || aabb1.contains(vec3)) {
+                return true;
+            }
+
+            if (aabb1.clip(vec3, vec31).isPresent()) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+   */
+
+  public boolean collidedAlongVector(Motion move, BlockShape collisionShape) {
+    Position vec3 = center();
+    Position vec31 = vec3.add(move);
+    for (BoundingBox boundingBox : collisionShape.elementaryBoxes()) {
+      BoundingBox inflatedBox = boundingBox.grow(sizeX() * 0.5 - 1.0E-7, sizeY() * 0.5 - 1.0E-7, sizeZ() * 0.5 - 1.0E-7);
+      if (inflatedBox.contains(vec31) || inflatedBox.contains(vec3)) {
+        return true;
+      }
+      if (inflatedBox.clip(vec3, vec31).isPresent()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   public BoundingBox copy() {

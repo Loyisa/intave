@@ -16,8 +16,8 @@ import de.jpx3.intave.block.type.BlockTypeAccess;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
+import de.jpx3.intave.share.Position;
 import de.jpx3.intave.user.User;
-import org.bukkit.Location;
 import org.bukkit.Material;
 
 import java.util.Collections;
@@ -32,7 +32,7 @@ final class WebPhysics implements BlockPhysic {
   }
 
   @Override
-  public Motion entityInside(User user, SimulationEnvironment environment, BlockPosition location, Location from, double motionX, double motionY, double motionZ) {
+  public Motion entityInside(User user, SimulationEnvironment environment, BlockPosition location, Position from, Motion motion, boolean insideBlockOrTooFast) {
     environment.setInWeb(true);
     environment.resetFallDistance();
     return null;
