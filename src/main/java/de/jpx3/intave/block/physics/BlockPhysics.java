@@ -21,7 +21,6 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 
 import java.util.EnumMap;
-import java.util.HashMap;
 import java.util.Map;
 
 public final class BlockPhysics {
@@ -68,6 +67,7 @@ public final class BlockPhysics {
   public static Motion entityInside(
     User user,
     Material material,
+    SimulationEnvironment environment,
     BlockPosition blockPosition,
     Location from,
     Motion motionInput
@@ -75,7 +75,7 @@ public final class BlockPhysics {
     BlockPhysic collision = physicLookup(material);
     if (collision != null) {
       return collision.entityInside(
-        user, blockPosition, from,
+        user, environment, blockPosition, from,
         motionInput.motionX, motionInput.motionY, motionInput.motionZ
       );
     }

@@ -14,6 +14,7 @@ package de.jpx3.intave.check.movement.physics.environment;
 import de.jpx3.intave.check.movement.physics.simulator.BoatSimulator.Status;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Position;
+import org.bukkit.util.Vector;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -61,6 +62,79 @@ final class MutableSimulationEnvironmentViewTest {
     assertEquals(7.0, view.baseMotionX(), 0.0);
     assertEquals(10.0, delegate.baseMotionX(), 0.0);
     assertEquals(4.0, view.positionX(), 0.0);
+  }
+
+  @Test
+  void motionMultiplierIsIsolatedAndCommitted() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    delegate.setMotionMultiplier(new Vector(1.0, 1.0, 1.0));
+    SimulationEnvironment view = delegate.mutableView();
+    Vector multiplier = new Vector(0.8, 0.75, 0.8);
+
+    view.setMotionMultiplier(multiplier);
+    multiplier.setX(2.0);
+
+    assertEquals(new Vector(1.0, 1.0, 1.0), delegate.motionMultiplier());
+    assertEquals(new Vector(0.8, 0.75, 0.8), view.motionMultiplier());
+
+    view.commitTo(delegate);
+
+    assertEquals(new Vector(0.8, 0.75, 0.8), delegate.motionMultiplier());
+  }
+
+  @Test
+  void webStateIsIsolatedAndCommitted() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    SimulationEnvironment enteringWeb = delegate.mutableView();
+
+    enteringWeb.setInWeb(true);
+
+    assertFalse(delegate.inWeb());
+    assertTrue(enteringWeb.inWeb());
+
+    enteringWeb.commitTo(delegate);
+
+    assertTrue(delegate.inWeb());
+
+    SimulationEnvironment leavingWeb = delegate.mutableView();
+    leavingWeb.resetInWeb();
+
+    assertTrue(delegate.inWeb());
+    assertFalse(leavingWeb.inWeb());
+
+    leavingWeb.commitTo(delegate);
+
+    assertFalse(delegate.inWeb());
+  }
+
+  @Test
+  void lavaDepthIsIsolatedCommittedAndResetWithLavaState() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    SimulationEnvironment enteringLava = delegate.mutableView();
+
+    enteringLava.setLavaDepth(0.35);
+
+    assertFalse(delegate.inLava());
+    assertEquals(0.0, delegate.lavaDepth(), 0.0);
+    assertTrue(enteringLava.inLava());
+    assertEquals(0.35, enteringLava.lavaDepth(), 0.0);
+
+    enteringLava.commitTo(delegate);
+
+    assertTrue(delegate.inLava());
+    assertEquals(0.35, delegate.lavaDepth(), 0.0);
+
+    SimulationEnvironment leavingLava = delegate.mutableView();
+    leavingLava.aquaticUpdateLavaReset();
+
+    assertTrue(delegate.inLava());
+    assertFalse(leavingLava.inLava());
+    assertEquals(0.0, leavingLava.lavaDepth(), 0.0);
+
+    leavingLava.commitTo(delegate);
+
+    assertFalse(delegate.inLava());
+    assertEquals(0.0, delegate.lavaDepth(), 0.0);
   }
 
   @Test

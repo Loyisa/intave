@@ -19,6 +19,7 @@ import de.jpx3.intave.check.movement.physics.simulator.Simulator;
 import de.jpx3.intave.check.movement.physics.simulator.Simulators;
 import de.jpx3.intave.check.movement.physics.update.TickAmbiguousUpdate;
 import de.jpx3.intave.player.collider.complex.SimulationResult;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
@@ -51,6 +52,7 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   private float gravity = 0.08F;
   private float stepHeight = 0.6F;
   private boolean inWater, inLava;
+  private double lavaDepth;
   private boolean sprinting, sneaking;
   private boolean lastSprinting, lastSneaking;
   private boolean collidedHorizontally, collidedVertically;
@@ -191,8 +193,25 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
     this.inWater = inWater;
   }
 
+  @Override
   public void setInLava(boolean inLava) {
     this.inLava = inLava;
+    if (!inLava) {
+      lavaDepth = 0.0;
+    }
+  }
+
+  @Override
+  public double lavaDepth() {
+    return lavaDepth;
+  }
+
+  @Override
+  public void setLavaDepth(double lavaDepth) {
+    this.lavaDepth = Math.max(0.0, lavaDepth);
+    if (this.lavaDepth > 0.0) {
+      inLava = true;
+    }
   }
 
   public void setSneaking(boolean sneaking) {
@@ -213,6 +232,7 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   public void setSleeping(boolean sleeping) {
   }
 
+  @Override
   public void setInWeb(boolean inWeb) {
     this.inWeb = inWeb;
   }
@@ -440,6 +460,12 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
+  public void setMotionMultiplier(Vector motionMultiplier) {
+    this.motionMultiplier = motionMultiplier;
+    fallDistance = 0.0;
+  }
+
+  @Override
   public void resetMotionMultiplier() {
     motionMultiplier = null;
   }
@@ -520,11 +546,6 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public float blockSpeedFactor() {
-    return 1;
-  }
-
-  @Override
   public float jumpMovementFactor() {
     return 0.02F;
   }
@@ -600,17 +621,22 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   }
 
   @Override
-  public void checkSupportingBlock(Motion motion) {
+  public BlockPosition mainSupportingBlockPos() {
+    return null;
+  }
+
+  @Override
+  public void setMainSupportingBlockPos(BlockPosition mainSupportingBlockPos) {
 
   }
 
   @Override
-  public void clearSupportingBlock() {
-
+  public boolean onGroundNoBlocks() {
+    return false;
   }
 
   @Override
-  public void compileSpecialBlocks() {
+  public void setOnGroundNoBlocks(boolean onGroundNoBlocks) {
 
   }
 
@@ -647,6 +673,26 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
   @Override
   public Material previousFrictionMaterial() {
     return Material.AIR;
+  }
+
+  @Override
+  public void setCollideMaterial(Material collideMaterial) {
+
+  }
+
+  @Override
+  public void setFrictionMaterial(Material frictionMaterial) {
+
+  }
+
+  @Override
+  public void setPreviousCollideMaterial(Material previousCollideMaterial) {
+
+  }
+
+  @Override
+  public void setPreviousFrictionMaterial(Material previousFrictionMaterial) {
+
   }
 
   @Override
@@ -840,7 +886,7 @@ public final class MockSimulationEnvironment implements SimulationEnvironment {
 
   @Override
   public void aquaticUpdateLavaReset() {
-
+    setInLava(false);
   }
 
   @Override

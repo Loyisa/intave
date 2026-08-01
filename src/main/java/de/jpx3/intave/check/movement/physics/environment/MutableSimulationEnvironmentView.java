@@ -19,6 +19,7 @@ import de.jpx3.intave.check.movement.physics.simulator.Simulator;
 import de.jpx3.intave.check.movement.physics.update.TickAmbiguousUpdate;
 import de.jpx3.intave.module.tracker.entity.Entity;
 import de.jpx3.intave.player.collider.complex.SimulationResult;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
@@ -71,6 +72,8 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   private boolean hasJumpedInTick;
   private boolean inWaterOverridden, inWater;
   private boolean inLavaOverridden, inLava;
+  private boolean lavaDepthOverridden;
+  private double lavaDepth;
   private boolean inWebOverridden, inWeb;
   private boolean onGroundOverridden, onGround;
   private boolean lastOnGroundOverridden, lastOnGround;
@@ -112,6 +115,14 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   private boolean stepHeightOverridden;
   private float stepHeight;
   private boolean postTickMotionCandidatesOverridden;
+  private BlockPosition mainSupportingBlockPos;
+  private boolean mainSupportingBlockPosOverridden;
+  private boolean onGroundNoBlocks;
+  private boolean onGroundNoBlocksOverridden;
+  private Material frictionMaterial = Material.AIR, previousFrictionMaterial = Material.AIR;
+  private Material collideMaterial = Material.AIR, previousCollideMaterial = Material.AIR;
+  private boolean frictionMaterialOverridden, collideMaterialOverridden,
+    previousFrictionMaterialOverridden, previousCollideMaterialOverridden;
   private List<Motion> postTickMotionCandidates;
   private boolean sleepingOverridden;
   private boolean sleeping;
@@ -133,6 +144,10 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
     poseOverridden = true;
     this.pose = pose;
     updateSize();
+    if (user() != null) {
+      boundingBoxOverridden = true;
+      boundingBox = BoundingBox.fromPosition(user(), this, position());
+    }
     deferredMutations.add(environment -> environment.setPose(pose));
   }
 
@@ -162,9 +177,6 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
         positionY() - verifiedLastPositionY(),
         positionZ() - verifiedLastPositionZ()
       );
-      if (user() != null) {
-        updatePose();
-      }
     }
     deferredMutations.add(environment -> environment.updateMovement(
       newPositionX, newPositionY, newPositionZ,
@@ -363,6 +375,16 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   }
 
   @Override
+  public void setMotionMultiplier(Vector motionMultiplier) {
+    Vector copy = motionMultiplier.clone();
+    motionMultiplierOverridden = true;
+    this.motionMultiplier = copy;
+    fallDistanceOverridden = true;
+    fallDistance = 0.0;
+    deferredMutations.add(environment -> environment.setMotionMultiplier(copy.clone()));
+  }
+
+  @Override
   public void resetMotionMultiplier() {
     motionMultiplierOverridden = true;
     motionMultiplier = null;
@@ -456,11 +478,6 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   }
 
   @Override
-  public float blockSpeedFactor() {
-    return delegate.blockSpeedFactor();
-  }
-
-  @Override
   public float jumpMovementFactor() {
     return delegate.jumpMovementFactor();
   }
@@ -538,15 +555,47 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   }
 
   @Override
+  public void setInLava(boolean inLava) {
+    inLavaOverridden = true;
+    this.inLava = inLava;
+    if (!inLava) {
+      lavaDepthOverridden = true;
+      lavaDepth = 0.0;
+    }
+    deferredMutations.add(environment -> environment.setInLava(inLava));
+  }
+
+  @Override
+  public double lavaDepth() {
+    return lavaDepthOverridden ? lavaDepth : delegate.lavaDepth();
+  }
+
+  @Override
+  public void setLavaDepth(double lavaDepth) {
+    lavaDepthOverridden = true;
+    this.lavaDepth = Math.max(0.0, lavaDepth);
+    if (this.lavaDepth > 0.0) {
+      inLavaOverridden = true;
+      inLava = true;
+    }
+    deferredMutations.add(environment -> environment.setLavaDepth(lavaDepth));
+  }
+
+  @Override
   public boolean inWeb() {
     return inWebOverridden ? inWeb : delegate.inWeb();
   }
 
   @Override
-  public void resetInWeb() {
+  public void setInWeb(boolean inWeb) {
     inWebOverridden = true;
-    inWeb = false;
-    deferredMutations.add(SimulationEnvironment::resetInWeb);
+    this.inWeb = inWeb;
+    deferredMutations.add(environment -> environment.setInWeb(inWeb));
+  }
+
+  @Override
+  public void resetInWeb() {
+    setInWeb(false);
   }
 
   @Override
@@ -576,18 +625,27 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   }
 
   @Override
-  public void checkSupportingBlock(Motion motion) {
-    deferredMutations.add(environment -> environment.checkSupportingBlock(motion));
+  public BlockPosition mainSupportingBlockPos() {
+    return mainSupportingBlockPosOverridden ? this.mainSupportingBlockPos : delegate.mainSupportingBlockPos();
   }
 
   @Override
-  public void clearSupportingBlock() {
-    deferredMutations.add(SimulationEnvironment::clearSupportingBlock);
+  public void setMainSupportingBlockPos(BlockPosition mainSupportingBlockPos) {
+    mainSupportingBlockPosOverridden = true;
+    this.mainSupportingBlockPos = mainSupportingBlockPos;
+    deferredMutations.add(environment -> environment.setMainSupportingBlockPos(mainSupportingBlockPos));
   }
 
   @Override
-  public void compileSpecialBlocks() {
-    deferredMutations.add(SimulationEnvironment::compileSpecialBlocks);
+  public boolean onGroundNoBlocks() {
+    return onGroundNoBlocksOverridden ? onGroundNoBlocks : delegate.onGroundNoBlocks();
+  }
+
+  @Override
+  public void setOnGroundNoBlocks(boolean onGroundNoBlocks) {
+    this.onGroundNoBlocks = onGroundNoBlocks;
+    this.onGroundNoBlocksOverridden = true;
+    deferredMutations.add(environment -> environment.setOnGroundNoBlocks(onGroundNoBlocks));
   }
 
   @Override
@@ -615,22 +673,50 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
 
   @Override
   public Material collideMaterial() {
-    return delegate.collideMaterial();
+    return collideMaterialOverridden ? collideMaterial : delegate.collideMaterial();
   }
 
   @Override
   public Material frictionMaterial() {
-    return delegate.frictionMaterial();
+    return frictionMaterialOverridden ? frictionMaterial : delegate.frictionMaterial();
   }
 
   @Override
   public Material previousCollideMaterial() {
-    return delegate.previousCollideMaterial();
+    return previousCollideMaterialOverridden ? previousCollideMaterial : delegate.previousCollideMaterial();
   }
 
   @Override
   public Material previousFrictionMaterial() {
-    return delegate.previousFrictionMaterial();
+    return previousFrictionMaterialOverridden ? previousFrictionMaterial : delegate.previousFrictionMaterial();
+  }
+
+  @Override
+  public void setCollideMaterial(Material collideMaterial) {
+    collideMaterialOverridden = true;
+    this.collideMaterial = collideMaterial;
+    deferredMutations.add(environment -> environment.setCollideMaterial(collideMaterial));
+  }
+
+  @Override
+  public void setFrictionMaterial(Material frictionMaterial) {
+    frictionMaterialOverridden = true;
+    this.frictionMaterial = frictionMaterial;
+    deferredMutations.add(environment -> environment.setFrictionMaterial(frictionMaterial));
+  }
+
+  @Override
+  public void setPreviousCollideMaterial(Material previousCollideMaterial) {
+    previousCollideMaterialOverridden = true;
+    this.previousCollideMaterial = previousCollideMaterial;
+    deferredMutations.add(environment -> environment.setPreviousCollideMaterial(previousCollideMaterial));
+  }
+
+  @Override
+  public void setPreviousFrictionMaterial(Material previousFrictionMaterial) {
+    previousFrictionMaterialOverridden = true;
+    this.previousFrictionMaterial = previousFrictionMaterial;
+    deferredMutations.add(environment -> environment.setPreviousFrictionMaterial(previousFrictionMaterial));
   }
 
   @Override
@@ -941,6 +1027,8 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
   public void aquaticUpdateLavaReset() {
     inLavaOverridden = true;
     inLava = false;
+    lavaDepthOverridden = true;
+    lavaDepth = 0.0;
     deferredMutations.add(SimulationEnvironment::aquaticUpdateLavaReset);
   }
 
@@ -1015,6 +1103,7 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
     if (hasMovement || hasRotation) {
       inactiveTickOverride(MoveMetric.EXTERNAL_VELOCITY);
     }
+    updatePose();
     deferredMutations.add(environment -> environment.tickComplete(hasMovement, hasRotation, true));
   }
 
@@ -1203,7 +1292,11 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
       other.setBaseMotion(baseMotionX, baseMotionY, baseMotionZ);
     }
     if (motionMultiplierOverridden) {
-      other.resetMotionMultiplier();
+      if (motionMultiplier == null) {
+        other.resetMotionMultiplier();
+      } else {
+        other.setMotionMultiplier(motionMultiplier.clone());
+      }
     }
     if (jumpMotionOverridden) {
       other.setJumpMotion(jumpMotion);
@@ -1211,11 +1304,14 @@ public final class MutableSimulationEnvironmentView implements SimulationEnviron
     if (inWaterOverridden) {
       other.setInWater(inWater);
     }
-    if (inLavaOverridden && !inLava) {
-      other.aquaticUpdateLavaReset();
+    if (inLavaOverridden) {
+      other.setInLava(inLava);
     }
-    if (inWebOverridden && !inWeb) {
-      other.resetInWeb();
+    if (lavaDepthOverridden) {
+      other.setLavaDepth(lavaDepth);
+    }
+    if (inWebOverridden) {
+      other.setInWeb(inWeb);
     }
     if (fallDistanceOverridden && fallDistance == 0.0) {
       other.resetFallDistance();

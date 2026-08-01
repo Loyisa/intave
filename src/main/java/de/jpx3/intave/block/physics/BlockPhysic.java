@@ -27,9 +27,9 @@ public interface BlockPhysic {
 
   // Called from #doBlockCollisions
   default @Nullable Motion entityInside(
-	  User user,
+    User user, SimulationEnvironment environment,
     BlockPosition location, Location from,
-	  double motionX, double motionY, double motionZ
+    double motionX, double motionY, double motionZ
   ) {
     return null;
   }

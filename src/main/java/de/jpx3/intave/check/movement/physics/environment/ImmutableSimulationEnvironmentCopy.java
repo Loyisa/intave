@@ -19,6 +19,7 @@ import de.jpx3.intave.check.movement.physics.simulator.Simulator;
 import de.jpx3.intave.check.movement.physics.update.TickAmbiguousUpdate;
 import de.jpx3.intave.module.tracker.entity.Entity;
 import de.jpx3.intave.player.collider.complex.SimulationResult;
+import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
@@ -51,11 +52,12 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	private final float aiMoveSpeed, sprintAiMoveSpeed;
 	private final float friction, sprintFriction;
 	private final double stepHeight, resetMotion, jumpMotion, gravity;
-	private final float blockSpeedFactor, jumpMovementFactor;
+	private final float jumpMovementFactor;
 	private final boolean hasJumpedInTick;
 	private final boolean sneaking, sprinting, hasSprintSpeed, sprintingAllowed;
 	private final boolean lastSprinting;
 	private final boolean inWater, inLava, inWeb;
+	private final double lavaDepth;
 	private final boolean onGround, lastOnGround, collidedHorizontally, collidedVertically;
 	private final boolean collidedWithBoat;
 	private final double frictionPosSubtraction;
@@ -99,6 +101,8 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	private final boolean areEyesInWater;
 	private final boolean clientElytraFlying;
 	private final boolean sleeping;
+	private final BlockPosition mainSupportingBlockPos;
+	private final boolean onGroundNoBlocks;
 	private final EnumMap<MoveMetric, Integer> activeTracker;
 	private final EnumMap<MoveMetric, Integer> pastTracker;
 
@@ -140,7 +144,6 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 		this.jumpMotion = source.jumpMotion();
 		this.hasJumpedInTick = source.isJumping();
 		this.gravity = source.gravity();
-		this.blockSpeedFactor = source.blockSpeedFactor();
 		this.jumpMovementFactor = source.jumpMovementFactor();
 		this.sneaking = source.isSneaking();
 		this.sprinting = source.isSprinting();
@@ -150,6 +153,7 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 		this.sprintingAllowed = source.sprintingAllowed();
 		this.inWater = source.inWater();
 		this.inLava = source.inLava();
+		this.lavaDepth = source.lavaDepth();
 		this.inWeb = source.inWeb();
 		this.onGround = source.onGround();
 		this.lastOnGround = source.lastOnGround();
@@ -208,7 +212,9 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 		this.baseMoveSpeed = source.baseMoveSpeed();
 		this.clientElytraFlying = source.shouldHaveFallFlyingPose();
 		this.sleeping = source.isSleeping();
-		this.postTickMotionCandidates =  new ArrayList<>(source.postTickMotionCandidates());
+		this.postTickMotionCandidates = new ArrayList<>(source.postTickMotionCandidates());
+		this.mainSupportingBlockPos = source.mainSupportingBlockPos();
+		this.onGroundNoBlocks = source.onGroundNoBlocks();
 		this.activeTracker = new EnumMap<>(MoveMetric.class);
 		this.pastTracker = new EnumMap<>(MoveMetric.class);
 		for (MoveMetric metric : MoveMetric.values()) {
@@ -414,6 +420,11 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	}
 
 	@Override
+	public void setMotionMultiplier(Vector motionMultiplier) {
+		throw immutableCopyException();
+	}
+
+	@Override
 	public void resetMotionMultiplier() {
 		throw immutableCopyException();
 	}
@@ -494,11 +505,6 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	}
 
 	@Override
-	public float blockSpeedFactor() {
-		return blockSpeedFactor;
-	}
-
-	@Override
 	public float jumpMovementFactor() {
 		return jumpMovementFactor;
 	}
@@ -564,8 +570,28 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	}
 
 	@Override
+	public void setInLava(boolean inLava) {
+		throw immutableCopyException();
+	}
+
+	@Override
+	public double lavaDepth() {
+		return lavaDepth;
+	}
+
+	@Override
+	public void setLavaDepth(double lavaDepth) {
+		throw immutableCopyException();
+	}
+
+	@Override
 	public boolean inWeb() {
 		return inWeb;
+	}
+
+	@Override
+	public void setInWeb(boolean inWeb) {
+		throw immutableCopyException();
 	}
 
 	@Override
@@ -599,12 +625,22 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	}
 
 	@Override
-	public void checkSupportingBlock(Motion motion) {
+	public BlockPosition mainSupportingBlockPos() {
+		return mainSupportingBlockPos;
+	}
+
+	@Override
+	public void setMainSupportingBlockPos(BlockPosition mainSupportingBlockPos) {
 		throw immutableCopyException();
 	}
 
 	@Override
-	public void clearSupportingBlock() {
+	public boolean onGroundNoBlocks() {
+		return onGroundNoBlocks;
+	}
+
+	@Override
+	public void setOnGroundNoBlocks(boolean onGroundNoBlocks) {
 		throw immutableCopyException();
 	}
 
@@ -657,6 +693,26 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 	@Override
 	public Material previousFrictionMaterial() {
 		return previousFrictionMaterial;
+	}
+
+	@Override
+	public void setCollideMaterial(Material collideMaterial) {
+		throw immutableCopyException();
+	}
+
+	@Override
+	public void setFrictionMaterial(Material frictionMaterial) {
+		throw immutableCopyException();
+	}
+
+	@Override
+	public void setPreviousCollideMaterial(Material previousCollideMaterial) {
+		throw immutableCopyException();
+	}
+
+	@Override
+	public void setPreviousFrictionMaterial(Material previousFrictionMaterial) {
+		throw immutableCopyException();
 	}
 
 	@Override
@@ -1047,15 +1103,14 @@ public final class ImmutableSimulationEnvironmentCopy implements SimulationEnvir
 		other.setBaseMotion(baseMotionX, baseMotionY, baseMotionZ);
 		if (motionMultiplier == null) {
 			other.resetMotionMultiplier();
+		} else {
+			other.setMotionMultiplier(copyVector(motionMultiplier));
 		}
 		other.setJumpMotion(jumpMotion);
 		other.setInWater(inWater);
-		if (!inLava) {
-			other.aquaticUpdateLavaReset();
-		}
-		if (!inWeb) {
-			other.resetInWeb();
-		}
+		other.setInLava(inLava);
+		other.setLavaDepth(lavaDepth);
+		other.setInWeb(inWeb);
 		other.setLastOnGround(lastOnGround);
 		applyFallDistanceTo(other);
 		other.setPushedByEntity(pushedByEntity);
