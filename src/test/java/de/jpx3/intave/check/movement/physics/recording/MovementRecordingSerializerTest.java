@@ -9,7 +9,7 @@
  *   https://polyformproject.org/licenses/perimeter/1.0.0/
  */
 
-package de.jpx3.intave.module.test.record;
+package de.jpx3.intave.check.movement.physics.recording;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.adapter.MinecraftVersions;
@@ -20,6 +20,9 @@ import de.jpx3.intave.block.variant.BlockVariant;
 import de.jpx3.intave.check.movement.physics.environment.Pose;
 import de.jpx3.intave.codec.ByteBufStreamCodecs;
 import de.jpx3.intave.codec.StreamCodec;
+import de.jpx3.intave.module.test.record.MaterialVariantStore;
+import de.jpx3.intave.module.test.record.MoveFrame;
+import de.jpx3.intave.module.test.record.MovementRecording;
 import de.jpx3.intave.module.test.record.action.Action;
 import de.jpx3.intave.player.attribute.Attribute;
 import de.jpx3.intave.player.attribute.AttributeModifier;
@@ -43,61 +46,26 @@ import java.util.zip.DeflaterOutputStream;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class MovementRecordingSerializerTest {
-	private static final StreamCodec<ByteBuf, ByteBuf, Position> NULLABLE_POSITION_CODEC =
-		Position.STREAM_CODEC.nullable(ByteBufStreamCodecs.BOOLEAN);
-	private static final StreamCodec<ByteBuf, ByteBuf, Rotation> NULLABLE_ROTATION_CODEC =
-		Rotation.STREAM_CODEC.nullable(ByteBufStreamCodecs.BOOLEAN);
-	private static final StreamCodec<ByteBuf, ByteBuf, Map<BlockPosition, MaterialVariantStore>> BLOCKS_CODEC =
-		ByteBufStreamCodecs.mapCodec(BlockPosition.STREAM_CODEC, MaterialVariantStore.STREAM_CODEC);
-	private static final StreamCodec<ByteBuf, ByteBuf, MoveFrame> UNVERSIONED_FRAME_CODEC = StreamCodec.of(
-		(buffer, frame) -> {
-			NULLABLE_POSITION_CODEC.encode(buffer, frame.moveTo());
-			NULLABLE_ROTATION_CODEC.encode(buffer, frame.rotateTo());
-			BLOCKS_CODEC.encode(buffer, frame.blocks());
-			Input.STREAM_CODEC.encode(buffer, frame.input());
-		},
-		_ -> {
-			throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
-		}
-	);
-	private static final StreamCodec<ByteBuf, ByteBuf, List<MoveFrame>> LEGACY_FRAMES_CODEC =
-		ByteBufStreamCodecs.listCodecOf(UNVERSIONED_FRAME_CODEC);
-	private static final StreamCodec<ByteBuf, ByteBuf, Map<Material, Map<Integer, BlockShape>>> COLLISION_SHAPES_CODEC = ByteBufStreamCodecs.mapCodec(
-		ByteBufStreamCodecs.MATERIAL,
-		ByteBufStreamCodecs.mapCodec(
-			ByteBufStreamCodecs.INTEGER,
-			BlockShape.STREAM_CODEC
-		)
-	);
-	private static final StreamCodec<ByteBuf, ByteBuf, Map<Material, Map<Integer, Fluid>>> FLUIDS_CODEC =
-		ByteBufStreamCodecs.mapCodec(
-			ByteBufStreamCodecs.MATERIAL,
-			ByteBufStreamCodecs.mapCodec(
-				ByteBufStreamCodecs.INTEGER,
-				Fluid.STREAM_CODEC
-			)
-		);
-	private static final StreamCodec<ByteBuf, ByteBuf, MovementRecording> FRAMES_ONLY_SMART_CODEC = ByteBufStreamCodecs.<MovementRecording>smartCodec(
-		codec ->
-			codec.field("frames", LEGACY_FRAMES_CODEC, MovementRecording::frames)
-				.field("internalId", ByteBufStreamCodecs.UUID, MovementRecording::internalId)
-				.field("collisionShapes", COLLISION_SHAPES_CODEC, MovementRecording::collisionShapes)
-				.field("fluids", FLUIDS_CODEC, MovementRecording::fluids),
-		_ -> {
-			throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
-		}
-	);
-	private static final StreamCodec<ByteBuf, ByteBuf, MovementRecording> FUTURE_SMART_CODEC = ByteBufStreamCodecs.<MovementRecording>smartCodec(
-		codec -> codec
-			.field("internalId", ByteBufStreamCodecs.UUID, MovementRecording::internalId)
-			.field("frames", LEGACY_FRAMES_CODEC, MovementRecording::frames)
-			.field("collisionShapes", COLLISION_SHAPES_CODEC, MovementRecording::collisionShapes)
-			.field("fluids", FLUIDS_CODEC, MovementRecording::fluids)
-			.field("format", ByteBufStreamCodecs.INTEGER, _ -> 2),
-		_ -> {
-			throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
-		}
-	);
+	private static final StreamCodec<ByteBuf, ByteBuf, Position> NULLABLE_POSITION_CODEC = Position.STREAM_CODEC.nullable(ByteBufStreamCodecs.BOOLEAN);
+	private static final StreamCodec<ByteBuf, ByteBuf, Rotation> NULLABLE_ROTATION_CODEC = Rotation.STREAM_CODEC.nullable(ByteBufStreamCodecs.BOOLEAN);
+	private static final StreamCodec<ByteBuf, ByteBuf, Map<BlockPosition, MaterialVariantStore>> BLOCKS_CODEC = ByteBufStreamCodecs.mapCodec(BlockPosition.STREAM_CODEC, MaterialVariantStore.STREAM_CODEC);
+	private static final StreamCodec<ByteBuf, ByteBuf, MoveFrame> UNVERSIONED_FRAME_CODEC = StreamCodec.of((buffer, frame) -> {
+		NULLABLE_POSITION_CODEC.encode(buffer, frame.moveTo());
+		NULLABLE_ROTATION_CODEC.encode(buffer, frame.rotateTo());
+		BLOCKS_CODEC.encode(buffer, frame.blocks());
+		Input.STREAM_CODEC.encode(buffer, frame.input());
+	}, _ -> {
+		throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
+	});
+	private static final StreamCodec<ByteBuf, ByteBuf, List<MoveFrame>> LEGACY_FRAMES_CODEC = ByteBufStreamCodecs.listCodecOf(UNVERSIONED_FRAME_CODEC);
+	private static final StreamCodec<ByteBuf, ByteBuf, Map<Material, Map<Integer, BlockShape>>> COLLISION_SHAPES_CODEC = ByteBufStreamCodecs.mapCodec(ByteBufStreamCodecs.MATERIAL, ByteBufStreamCodecs.mapCodec(ByteBufStreamCodecs.INTEGER, BlockShape.STREAM_CODEC));
+	private static final StreamCodec<ByteBuf, ByteBuf, Map<Material, Map<Integer, Fluid>>> FLUIDS_CODEC = ByteBufStreamCodecs.mapCodec(ByteBufStreamCodecs.MATERIAL, ByteBufStreamCodecs.mapCodec(ByteBufStreamCodecs.INTEGER, Fluid.STREAM_CODEC));
+	private static final StreamCodec<ByteBuf, ByteBuf, MovementRecording> FRAMES_ONLY_SMART_CODEC = ByteBufStreamCodecs.<MovementRecording>smartCodec(codec -> codec.field("frames", LEGACY_FRAMES_CODEC, MovementRecording::frames).field("internalId", ByteBufStreamCodecs.UUID, MovementRecording::internalId).field("collisionShapes", COLLISION_SHAPES_CODEC, MovementRecording::collisionShapes).field("fluids", FLUIDS_CODEC, MovementRecording::fluids), _ -> {
+		throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
+	});
+	private static final StreamCodec<ByteBuf, ByteBuf, MovementRecording> FUTURE_SMART_CODEC = ByteBufStreamCodecs.<MovementRecording>smartCodec(codec -> codec.field("internalId", ByteBufStreamCodecs.UUID, MovementRecording::internalId).field("frames", LEGACY_FRAMES_CODEC, MovementRecording::frames).field("collisionShapes", COLLISION_SHAPES_CODEC, MovementRecording::collisionShapes).field("fluids", FLUIDS_CODEC, MovementRecording::fluids).field("format", ByteBufStreamCodecs.INTEGER, _ -> 2), _ -> {
+		throw new UnsupportedOperationException("This codec is used for encoding test payloads only");
+	});
 
 	@BeforeEach
 	public void before() {
@@ -132,28 +100,9 @@ final class MovementRecordingSerializerTest {
 	@Test
 	void serializeFrameAttributes() {
 		MovementRecording recording = MovementRecording.create();
-		AttributeModifier powderSnow = new AttributeModifier(
-			new MinecraftKey("minecraft", "powder_snow"),
-			UUID.randomUUID(),
-			null,
-			AttributeModifier.Operation.ADD_NUMBER,
-			-0.025
-		);
-		Attribute movementSpeed = Attribute.newBuilder()
-			.withAttributeKey("movement_speed")
-			.withBaseValue(0.1)
-			.withAttributeModifiers(Set.of(powderSnow))
-			.build();
-		recording.insertFrame(
-			BoundingBox.empty(),
-			Input.none(),
-			Position.immutableEmpty(),
-			Rotation.zero(),
-			new MockFullBlockStaticPlane(),
-			Map.of("movement_speed", movementSpeed),
-			true,
-			Pose.FALL_FLYING
-		);
+		AttributeModifier powderSnow = new AttributeModifier(new MinecraftKey("minecraft", "powder_snow"), UUID.randomUUID(), null, AttributeModifier.Operation.ADD_NUMBER, -0.025);
+		Attribute movementSpeed = Attribute.newBuilder().withAttributeKey("movement_speed").withBaseValue(0.1).withAttributeModifiers(Set.of(powderSnow)).build();
+		recording.insertFrame(BoundingBox.empty(), Input.none(), Position.immutableEmpty(), Rotation.zero(), new MockFullBlockStaticPlane(), Map.of("movement_speed", movementSpeed), true, Pose.FALL_FLYING);
 
 		ByteBuf buffer = Unpooled.buffer();
 		try {
@@ -176,10 +125,7 @@ final class MovementRecordingSerializerTest {
 	@Test
 	void serializesBlockVariantProperties() {
 		MovementRecording recording = MovementRecording.create();
-		BlockVariant variant = testVariant(
-			7,
-			Map.of("drag", true, "distance", 3, "facing", "north")
-		);
+		BlockVariant variant = testVariant(7, Map.of("drag", true, "distance", 3, "facing", "north"));
 		recording.recordBlockVariant(Material.STONE, 7, variant);
 
 		ByteBuf buffer = Unpooled.buffer();
@@ -232,21 +178,12 @@ final class MovementRecordingSerializerTest {
 		MovementRecording movementRecording = MovementRecording.create();
 		MockFullBlockStaticPlane blockCache = new MockFullBlockStaticPlane();
 		for (int i = 0; i < 8; i++) {
-			movementRecording.insertFrame(
-				BoundingBox.empty(),
-				Input.random(),
-				i % 2 == 1 ? Position.immutableRandom() : null,
-				i % 2 == 0 ? Rotation.zero() : null,
-				blockCache,
-				false
-			);
+			movementRecording.insertFrame(BoundingBox.empty(), Input.random(), i % 2 == 1 ? Position.immutableRandom() : null, i % 2 == 0 ? Rotation.zero() : null, blockCache, false);
 		}
 		return movementRecording;
 	}
 
-	private static void deepEqualsCheck(
-		MovementRecording first, MovementRecording second
-	) {
+	private static void deepEqualsCheck(MovementRecording first, MovementRecording second) {
 		assertEquals(first.internalId(), second.internalId());
 		assertEquals(first.clientProtocolVersion(), second.clientProtocolVersion());
 		assertEquals(first.serverVersion(), second.serverVersion());
@@ -310,9 +247,7 @@ final class MovementRecordingSerializerTest {
 
 	}
 
-	private static Resource compressedResourceOf(
-		MovementRecording recording
-	) throws IOException {
+	private static Resource compressedResourceOf(MovementRecording recording) throws IOException {
 		ByteBuf buf = Unpooled.buffer();
 		ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
 		try (DeflaterOutputStream compressedOutputStream = new DeflaterOutputStream(byteArrayOutputStream)) {

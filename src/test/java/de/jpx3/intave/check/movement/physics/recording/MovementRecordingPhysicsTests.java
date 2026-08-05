@@ -9,7 +9,7 @@
  *   https://polyformproject.org/licenses/perimeter/1.0.0/
  */
 
-package de.jpx3.intave.module.test.record;
+package de.jpx3.intave.check.movement.physics.recording;
 
 import de.jpx3.intave.access.player.trust.TrustFactor;
 import de.jpx3.intave.adapter.MinecraftVersion;
@@ -22,12 +22,15 @@ import de.jpx3.intave.block.shape.resolve.DenyShapeResolverPipeline;
 import de.jpx3.intave.block.shape.resolve.DrillResolver;
 import de.jpx3.intave.block.variant.BlockVariantRegister;
 import de.jpx3.intave.check.movement.physics.environment.Pose;
-import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
+import de.jpx3.intave.check.movement.physics.environment.PostTickSimulation;
 import de.jpx3.intave.check.movement.physics.search.SimulationSearch;
 import de.jpx3.intave.check.movement.physics.search.ThreeTickSimulationSearch;
 import de.jpx3.intave.check.movement.physics.simulator.Simulation;
 import de.jpx3.intave.check.movement.physics.simulator.Simulator;
 import de.jpx3.intave.check.movement.physics.simulator.Simulators;
+import de.jpx3.intave.check.movement.physics.update.MotionSetUpdate;
+import de.jpx3.intave.module.test.record.MoveFrame;
+import de.jpx3.intave.module.test.record.MovementRecording;
 import de.jpx3.intave.module.test.record.action.Action;
 import de.jpx3.intave.module.test.record.action.ReceiveVelocity;
 import de.jpx3.intave.player.attribute.Attribute;
@@ -93,6 +96,21 @@ final class MovementRecordingPhysicsTests {
 			}
 			processRecordingResource(resourcePathOf(recordingPath));
 		}
+	}
+
+	@Test
+	void elytraOnBubblesRecording() throws IOException {
+		processRecordingResource("physics_test_runs/blocks/bubblecolumn/elytra_on_bubbles.ptr");
+	}
+
+	@Test
+	void honeySideJumpRecording() throws IOException {
+		processRecordingResource("physics_test_runs/blocks/honeyblock/honey_side_jump.ptr");
+	}
+
+	@Test
+	void pending8770e919Recording() throws IOException {
+		processRecordingResource("physics_test_runs/pending/8770e919-2080-4e09-99c9-05ade1aede90.ptr");
 	}
 
 	@Test
@@ -246,7 +264,6 @@ final class MovementRecordingPhysicsTests {
 				hasMovement, hasRotation
 			);
 			Simulator simulator = Simulators.selectFor(metadata);
-			metadata.setSimulator(simulator);
 			metadata.stepHeight = simulator.stepHeight();
 			metadata.treatThisFlyPacketAsMovePacket = false;
 
@@ -257,6 +274,9 @@ final class MovementRecordingPhysicsTests {
 			Motion previousBaseMotion = metadata.mutableBaseMotionCopy();
 			Motion preTickMotion = simulator.simulatePreTick(user, previousBaseMotion.copy(), metadata);
 			metadata.setBaseMotion(preTickMotion);
+			simulator = Simulators.selectFor(metadata);
+			metadata.setSimulator(simulator);
+			metadata.stepHeight = simulator.stepHeight();
 			preparePostTickMotionCandidatesForSearch(user, metadata, simulator, previousBaseMotion, preTickMotion);
 
 			Simulation simulation = processor.greedyFullTickSearch(user, metadata.mutableView(), simulator);
@@ -363,8 +383,22 @@ final class MovementRecordingPhysicsTests {
 			+ ", previous=" + metadata.lastOnGround());
 		diagnosticLine("Gliding", metadata.gliding);
 		diagnosticLine("Pose", metadata.pose());
+		diagnosticLine(
+			"Swimming state",
+			"stored=" + metadata.isSwimming()
+				+ ", selected=" + simulation.environment().isSwimming()
+				+ ", eyesInWater=" + metadata.areEyesInWater()
+		);
 		diagnosticLine("Simulator", simulator.getClass().getSimpleName());
 		diagnosticLine("Sneaking", metadata.isSneaking());
+		diagnosticLine(
+			"Block movement state",
+			"collide=" + metadata.collideMaterial()
+				+ ", friction=" + metadata.frictionMaterial()
+				+ ", speedFactor=" + formatDiagnosticDouble(metadata.blockSpeedFactor())
+				+ ", supporting=" + metadata.mainSupportingBlockPos()
+		);
+		diagnosticLine("Motion multiplier", String.valueOf(metadata.motionMultiplier()));
 		diagnosticLine("Ability scale", formatDiagnosticDouble(user.meta().abilities().scale()));
 		diagnosticLine("Player bounds", formatBoundingBox(metadata.boundingBox()));
 
@@ -448,10 +482,14 @@ final class MovementRecordingPhysicsTests {
 		}
 	}
 
-	private static void printMotionCandidates(List<Motion> candidates) {
+	private static void printMotionCandidates(List<PostTickSimulation> candidates) {
 		diagnosticLine("Base candidates", candidates.size());
 		for (int index = 0; index < candidates.size(); index++) {
-			diagnosticLine("  candidate " + (index + 1), formatMotion(candidates.get(index)));
+			PostTickSimulation candidate = candidates.get(index);
+			diagnosticLine(
+				"  candidate " + (index + 1),
+				formatMotion(candidate.motion()) + (candidate.priorSprinting() ? " _SPR" : "")
+			);
 		}
 	}
 
@@ -479,33 +517,27 @@ final class MovementRecordingPhysicsTests {
 		Motion previousBaseMotion,
 		Motion preTickMotion
 	) {
-		List<Motion> candidates = metadata.postTickMotionCandidates();
+		List<PostTickSimulation> candidates = metadata.postTickMotionCandidates();
 		if (candidates.isEmpty()) {
 			return;
 		}
-		if (candidates.size() == 1 && candidates.get(0).equals(previousBaseMotion)) {
-			metadata.setPostTickMotionCandidates(List.of(preTickMotion));
+		if (candidates.size() == 1 && candidates.get(0).motion().equals(previousBaseMotion)) {
+			metadata.setPostTickMotionCandidates(
+				List.of(candidates.get(0).withMotion(preTickMotion))
+			);
 			return;
 		}
-		List<Motion> preTickCandidates = new LinkedList<>();
-		for (Motion candidate : candidates) {
+		List<PostTickSimulation> preTickCandidates = new LinkedList<>();
+		for (PostTickSimulation candidate : candidates) {
 			preTickCandidates.add(
-				simulator.simulatePreTick(user, candidate.copy(), metadata.mutableView())
+				candidate.withMotion(
+					simulator.simulatePreTick(
+						user, candidate.motion(), metadata.mutableView()
+					)
+				)
 			);
 		}
 		metadata.setPostTickMotionCandidates(preTickCandidates);
-	}
-
-	private static boolean subversiveFlyingMovement(
-		User user,
-		SimulationEnvironment environment,
-		Simulation simulation,
-		boolean hasMovement
-	) {
-		return !hasMovement && !simulation.offsetMotion().isZero() && simulation.resultsInFlyingPacket(
-			environment,
-			user.meta().protocol().flyingPacketUncertaintyRadius()
-		);
 	}
 
 	private static void preparePhysicsTestRuntime(MovementRecording recording) {
@@ -827,10 +859,18 @@ final class MovementRecordingPhysicsTests {
 			if (action instanceof ReceiveVelocity velocity) {
 				if (velocity.tickRange().start() == tick) {
 					Motion motion = velocity.motion();
+					long duration = velocity.tickRange().end() - velocity.tickRange().start();
+					if (duration <= 0) {
+						throw new IllegalStateException("Invalid velocity tick range: " + velocity.tickRange());
+					}
+					// Live velocity packets are applied by UpdateBrancher after
+					// retained post-tick motion candidates have been selected.
+					MotionSetUpdate update = MotionSetUpdate.openEnded(motion, metadata);
+					update.setRunNotAfter(metadata.currentTick() + duration - 1);
+					metadata.queueTickAmbiguousUpdate(update);
 					metadata.baseMotionXBeforeVelocity = metadata.baseMotionX;
 					metadata.baseMotionYBeforeVelocity = metadata.baseMotionY;
 					metadata.baseMotionZBeforeVelocity = metadata.baseMotionZ;
-					metadata.setBaseMotion(motion);
 					metadata.lastVelocity = motion.copy();
 					metadata.activeTick(EXTERNAL_VELOCITY);
 					metadata.activeTick(RECEIVED_VELOCITY_PACKET);
@@ -854,6 +894,7 @@ final class MovementRecordingPhysicsTests {
 		if (movement.sprinting != sprinting) {
 			movement.activeTick(SPRINT_CHANGE);
 		}
+		movement.lastSneaking = movement.sneaking;
 		movement.sneaking = input.sneakKey();
 		movement.sprinting = sprinting;
 	}

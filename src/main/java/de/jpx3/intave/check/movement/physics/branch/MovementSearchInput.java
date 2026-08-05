@@ -76,4 +76,9 @@ public final class MovementSearchInput {
     }
     return tracedAfterTickMovementConfig.requiredActualMotionOverride();
   }
+
+  boolean blockInsideCheckBranchNecessary() {
+    return tracedAfterTickMovementConfig != null
+      && tracedAfterTickMovementConfig.requiredBlockInsideCheckVersion();
+  }
 }

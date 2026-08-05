@@ -9,7 +9,7 @@
  *   https://polyformproject.org/licenses/perimeter/1.0.0/
  */
 
-package de.jpx3.intave.check.movement.physics;
+package de.jpx3.intave.check.movement.physics.misc;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.adapter.MinecraftVersions;
@@ -31,6 +31,7 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
+import org.jspecify.annotations.NonNull;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -130,6 +131,28 @@ final class BaseSimulatorAquaticsTest {
 		assertEquals(0.0, result.motionY, EPSILON);
 	}
 
+	@Test
+	void eyeFluidStateStagingStartsWith116() {
+		TestContext legacy = context(VER_1_15, false, Motion.newEmpty(), new MockFullBlockStaticPlane());
+		TestContext modern = context(VER_1_16, false, Motion.newEmpty(), new MockFullBlockStaticPlane());
+
+		assertFalse(legacy.user.meta().protocol().stagesEyeFluidState());
+		assertTrue(modern.user.meta().protocol().stagesEyeFluidState());
+	}
+
+	@Test
+	void aquaticFluidFlowOwnsTheSingleInteractionMargin() {
+		TestContext context = context(VER_26_1_1, false, Motion.newEmpty(), new MockFullBlockStaticPlane());
+		BoundingBox entityBox = context.environment.boundingBox();
+
+		Simulators.PLAYER.simulatePreTick(
+			context.user, Motion.newEmpty(), context.environment
+		);
+
+		FixedWaterFlow waterFlow = (FixedWaterFlow) context.user.fluidflow();
+		assertSame(entityBox, waterFlow.lastBoundingBox);
+	}
+
 	private static TestContext context(
 		int protocolVersion,
 		boolean currentWaterState,
@@ -175,6 +198,7 @@ final class BaseSimulatorAquaticsTest {
 	private static final class FixedWaterFlow implements FluidFlow {
 		private final boolean inWater;
 		private final Motion waterFlow;
+		private BoundingBox lastBoundingBox;
 
 		private FixedWaterFlow(boolean inWater, Motion waterFlow) {
 			this.inWater = inWater;
@@ -188,6 +212,7 @@ final class BaseSimulatorAquaticsTest {
 			Motion baseMotion,
 			BoundingBox boundingBox
 		) {
+			lastBoundingBox = boundingBox;
 			baseMotion.add(waterFlow);
 			return inWater;
 		}
@@ -225,7 +250,7 @@ final class BaseSimulatorAquaticsTest {
 		}
 
 		@Override
-		public BlockState stateAt(int posX, int posY, int posZ) {
+		public @NonNull BlockState stateAt(int posX, int posY, int posZ) {
 			return posX == blockX && posY == blockY && posZ == blockZ
 				? BlockState.stone()
 				: BlockState.empty();

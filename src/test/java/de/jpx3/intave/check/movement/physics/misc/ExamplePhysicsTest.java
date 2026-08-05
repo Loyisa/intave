@@ -9,7 +9,7 @@
  *   https://polyformproject.org/licenses/perimeter/1.0.0/
  */
 
-package de.jpx3.intave.check.movement.physics;
+package de.jpx3.intave.check.movement.physics.misc;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.adapter.MinecraftVersions;

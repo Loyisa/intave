@@ -43,18 +43,11 @@ public final class EntityMovement {
 		return axisDependentOriginalMovement;
 	}
 
-	public EntityMovement withAxisDependentOriginalMovement(Motion axisDependentOriginalMovement) {
-		return new EntityMovement(from, to, Optional.of(axisDependentOriginalMovement));
-	}
-
 	public static EntityMovement of(Position from, Position to) {
 		return new EntityMovement(from, to, Optional.empty());
 	}
 
 	public static EntityMovement of(Position from, Position to, Motion axisDependentOriginalMovement) {
-		if (axisDependentOriginalMovement == null) {
-			return of(from, to);
-		}
-		return new EntityMovement(from, to, Optional.of(axisDependentOriginalMovement));
+		return new EntityMovement(from, to, Optional.ofNullable(axisDependentOriginalMovement));
 	}
 }

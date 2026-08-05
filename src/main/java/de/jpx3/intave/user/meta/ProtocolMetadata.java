@@ -23,7 +23,12 @@ import java.util.*;
 
 public final class ProtocolMetadata {
   public static int VER_26_1_1 = 775; // 26.1.1
+  public static int VER_1_21_11 = 774; // 1.21.11
+  public static int VER_1_21_9 = 773; // 1.21.9 - 1.21.10
+  public static int VER_1_21_7 = 772; // 1.21.7 - 1.21.8
+  public static int VER_1_21_6 = 771; // 1.21.6
   public static int VER_1_21_5 = 770; // 1.21.5
+  public static int VER_1_21_4 = 769; // 1.21.4
   public static int VER_1_21_3 = 768; // 1.21.3
   public static int VER_1_21 = 767; // 1.21
   // final has been removed to disguise modified integer VERSION_DETAILS
@@ -163,6 +168,10 @@ public final class ProtocolMetadata {
     return protocolVersion >= VER_1_16;
   }
 
+  public boolean stagesEyeFluidState() {
+    return protocolVersion >= VER_1_16;
+  }
+
   public boolean fluidHeightUsesDoublePrecision() {
     return protocolVersion >= VER_26_1_1;
   }
@@ -267,12 +276,16 @@ public final class ProtocolMetadata {
     }
   }
 
+  public boolean flyingPacketsCausePositionUncertainty() {
+    return protocolVersion < VER_1_18_2;
+  }
+
 	public boolean newMotionClampLogic() {
 		return protocolVersion >= VER_1_21_5;
 	}
 
   public boolean newBlockEntityIntersectionLogic() {
-    return protocolVersion >= VER_1_21_5;
+    return protocolVersion >= VER_1_21_3;
   }
 
   public boolean oppositeBlockVectorBehavior() {

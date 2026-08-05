@@ -38,7 +38,7 @@ public interface BlockPhysic {
     return null;
   }
 
-  default @Nullable Motion landed(User user, double motionX, double motionY, double motionZ) {
+  default @Nullable Motion landed(User user, SimulationEnvironment environment, double motionX, double motionY, double motionZ) {
     return null;
   }
 

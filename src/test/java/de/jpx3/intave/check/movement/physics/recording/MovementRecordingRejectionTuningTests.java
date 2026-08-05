@@ -1,4 +1,15 @@
-package de.jpx3.intave.module.test.record;
+/*
+ * Copyright 2026 Intave
+ *
+ * This software is licensed under the PolyForm Perimeter License 1.0.0.
+ * You may use this software for any purpose, except for providing to
+ * others any product that competes with the software.
+ *
+ * A copy of the license is available at:
+ *   https://polyformproject.org/licenses/perimeter/1.0.0/
+ */
+
+package de.jpx3.intave.check.movement.physics.recording;
 
 import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
@@ -26,7 +37,10 @@ final class MovementRecordingRejectionTuningTests {
 			.map(recordingPath -> dynamicTest(
 				MovementRecordingPhysicsTests.resourcePathOf(recordingPath),
 				() -> MovementRecordingPhysicsTests.processRecordingResource(
-					MovementRecordingPhysicsTests.resourcePathOf(recordingPath)
+					MovementRecordingPhysicsTests.resourcePathOf(recordingPath),
+					(tick, simulation, actualMotion) -> {
+						System.out.println(simulation.offsetDifference() + " ");
+					}
 				)
 			));
 	}

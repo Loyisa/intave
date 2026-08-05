@@ -9,11 +9,12 @@
  *   https://polyformproject.org/licenses/perimeter/1.0.0/
  */
 
-package de.jpx3.intave.check.movement.physics;
+package de.jpx3.intave.check.movement.physics.misc;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.adapter.MinecraftVersions;
 import de.jpx3.intave.block.cache.MockFullBlockStaticPlane;
+import de.jpx3.intave.check.movement.physics.config.MovementConfiguration;
 import de.jpx3.intave.check.movement.physics.environment.Pose;
 import de.jpx3.intave.share.Position;
 import de.jpx3.intave.share.Rotation;
@@ -32,8 +33,7 @@ import org.junit.jupiter.api.Test;
 import java.util.UUID;
 
 import static de.jpx3.intave.user.meta.ProtocolMetadata.VER_1_21_5;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 final class UnderwaterSprintPhysicsTest {
 	private static final UUID PLAYER_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
@@ -94,9 +94,51 @@ final class UnderwaterSprintPhysicsTest {
 		metadata.updateMovement(POSITION, ROTATION);
 
 		metadata.setPose(Pose.SWIMMING);
+		metadata.setSwimming(true);
 		metadata.setLastSprinting(true);
 		metadata.updateMovement(POSITION, ROTATION);
 
 		assertTrue(metadata.sprintingAllowed());
+	}
+
+	@Test
+	void physicalSwimmingPoseDoesNotStartLogicalSwimmingInShallowWater() {
+		MovementMetadata metadata = user.meta().movement();
+		metadata.setPose(Pose.SWIMMING);
+		metadata.setSwimming(false);
+		metadata.setInWater(true);
+		metadata.setEyesInWater(false);
+		metadata.setLastMovementConfiguration(
+			MovementConfiguration.blank().withSprinting()
+		);
+
+		metadata.updateSwimming();
+
+		assertFalse(metadata.isSwimming());
+		assertFalse(metadata.shouldHaveSwimmingPose());
+		assertEquals(Pose.SWIMMING, metadata.pose());
+	}
+
+	@Test
+	void logicalSwimmingContinuesInShallowWaterUntilSprintingStops() {
+		MovementMetadata metadata = user.meta().movement();
+		metadata.setPose(Pose.FALL_FLYING);
+		metadata.setSwimming(true);
+		metadata.setInWater(true);
+		metadata.setEyesInWater(false);
+		metadata.setLastMovementConfiguration(
+			MovementConfiguration.blank().withSprinting()
+		);
+
+		metadata.updateSwimming();
+
+		assertTrue(metadata.isSwimming());
+		assertTrue(metadata.shouldHaveSwimmingPose());
+		assertEquals(Pose.FALL_FLYING, metadata.pose());
+
+		metadata.setLastMovementConfiguration(MovementConfiguration.blank());
+		metadata.updateSwimming();
+
+		assertFalse(metadata.isSwimming());
 	}
 }

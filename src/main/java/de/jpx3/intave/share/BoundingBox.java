@@ -307,6 +307,10 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
     return grow(value, 0, value);
   }
 
+  public BoundingBox growVertically(double v) {
+    return grow(0, v, 0);
+  }
+
   public BoundingBox shrink(double value) {
     return grow(-value);
   }

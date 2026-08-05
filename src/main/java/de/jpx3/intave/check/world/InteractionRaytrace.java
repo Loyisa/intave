@@ -258,7 +258,7 @@ public final class InteractionRaytrace extends MetaCheck<InteractionRaytrace.Int
         case FAILED_CRITICAL:
         case ENFORCE_ROUTING:
           interactionMeta.interactionList.add(interaction);
-          boolean usable = ItemProperties.canItemBeUsed(player, heldItem)
+          boolean usable = ItemProperties.canItemBeUsed(user, heldItem)
             && !ItemProperties.isPotion(interaction.itemTypeInHand());
           if (!usable || type == EMPTY_INTERACT) {
             if (MinecraftVersions.VER1_19.atOrAbove() && enumDirection != 255) {
@@ -695,7 +695,7 @@ public final class InteractionRaytrace extends MetaCheck<InteractionRaytrace.Int
     MetadataBundle meta = user.meta();
     ViolationMetadata violationMetadata = meta.violationLevel();
     InteractionMeta interactionMeta = metaOf(player);
-    boolean usableItemInHand = ItemProperties.canItemBeUsed(player, interaction.itemInHand())
+    boolean usableItemInHand = ItemProperties.canItemBeUsed(user, interaction.itemInHand())
       && !ItemProperties.isPotion(interaction.itemTypeInHand());
     Location targetLocation = interaction.targetBlock().toLocation(world);
 
