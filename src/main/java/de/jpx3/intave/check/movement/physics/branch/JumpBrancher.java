@@ -36,7 +36,7 @@ final class JumpBrancher extends MovementSearchBrancher {
       return;
     }
 
-    SimulationEnvironment environment = inputBranch.modifiedImmutableView(input.environment());
+    SimulationEnvironment environment = inputBranch.modifiedImmutableView(input);
     User user = input.user();
     MovementMetadata movement = user.meta().movement();
     ProtocolMetadata protocol = user.meta().protocol();

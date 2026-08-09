@@ -196,7 +196,7 @@ public final class Simulation {
     }
     double thisDistance = offsetDifference();
     double otherDistance = other.offsetDifference();
-    Simulation selectedSimulation = thisDistance < otherDistance ? this : other;
+    Simulation selectedSimulation = finiteDistance(thisDistance) < finiteDistance(otherDistance) ? this : other;
     if (selectedSimulation.mustBeCopied) {
       selectedSimulation = selectedSimulation.reusableCopy();
     }
@@ -217,11 +217,15 @@ public final class Simulation {
     }
     double thisDistance = positionDifference(sentPosition);
     double otherDistance = other.positionDifference(sentPosition);
-    Simulation selectedSimulation = thisDistance < otherDistance ? this : other;
+    Simulation selectedSimulation = finiteDistance(thisDistance) < finiteDistance(otherDistance) ? this : other;
     if (selectedSimulation.mustBeCopied) {
       selectedSimulation = selectedSimulation.reusableCopy();
     }
     return selectedSimulation;
+  }
+
+  private static double finiteDistance(double distance) {
+    return Double.isFinite(distance) ? distance : Double.POSITIVE_INFINITY;
   }
 
   @Override

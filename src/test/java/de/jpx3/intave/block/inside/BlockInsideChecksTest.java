@@ -17,22 +17,27 @@ import de.jpx3.intave.check.movement.physics.config.MovementConfiguration;
 import de.jpx3.intave.share.BoundingBox;
 import de.jpx3.intave.share.MutableBlockPosition;
 import de.jpx3.intave.share.Position;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 final class BlockInsideChecksTest {
+	@BeforeAll
+	static void setupVersion() {
+		MinecraftVersion.setCurrent(MinecraftVersions.VER26_1_1);
+	}
+
 	@Test
 	void selectsEveryDistinct21xInsideCheck() {
-		MinecraftVersion.setCurrent(MinecraftVersions.VER26_1_1);
 		assertInstanceOf(v21BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(767).getFirst());
 		assertInstanceOf(v212BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(768).getFirst());
 		assertEquals(v214BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(769).getFirst().getClass());
 		assertEquals(v215BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(770).getFirst().getClass());
 		assertEquals(v216BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(771).getFirst().getClass());
 		assertEquals(v216BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(772).getFirst().getClass());
-		assertEquals(v2110BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(773).getFirst().getClass());
 		assertEquals(v2110BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(774).getFirst().getClass());
+		assertEquals(v2110BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(775).getFirst().getClass());
 	}
 
 	@Test
@@ -45,10 +50,16 @@ final class BlockInsideChecksTest {
 	void selectsBothChecksForSharedProtocol773ConfigurationBranches() {
 		MovementConfiguration v21_10 = MovementConfiguration.blank().withoutAlternativeBlockInsideCheck();
 		MovementConfiguration v21_9 = MovementConfiguration.blank().withAlternativeBlockInsideCheck();
+		var sharedProtocolChecks = BlockInsideChecks.suitableForProtocol(773);
 
+		assertEquals(2, sharedProtocolChecks.size());
+		assertEquals(v2110BlockInsideCheck.class, sharedProtocolChecks.get(1).getClass());
+		assertEquals(v219BlockInsideCheck.class, sharedProtocolChecks.get(0).getClass());
 		assertEquals(v2110BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(773, v21_10).getClass());
 		assertEquals(v219BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(773, v21_9).getClass());
 		assertEquals(v216BlockInsideCheck.class, BlockInsideChecks.suitableForProtocol(772, v21_9).getClass());
+		assertEquals(1, BlockInsideChecks.suitableForProtocol(774).size());
+		assertEquals(1, BlockInsideChecks.suitableForProtocol(775).size());
 	}
 
 	@Test

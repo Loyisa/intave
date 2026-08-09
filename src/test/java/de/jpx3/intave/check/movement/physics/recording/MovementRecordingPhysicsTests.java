@@ -23,6 +23,7 @@ import de.jpx3.intave.block.shape.resolve.DrillResolver;
 import de.jpx3.intave.block.variant.BlockVariantRegister;
 import de.jpx3.intave.check.movement.physics.environment.Pose;
 import de.jpx3.intave.check.movement.physics.environment.PostTickSimulation;
+import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.check.movement.physics.search.SimulationSearch;
 import de.jpx3.intave.check.movement.physics.search.ThreeTickSimulationSearch;
 import de.jpx3.intave.check.movement.physics.simulator.Simulation;
@@ -67,7 +68,6 @@ import static de.jpx3.intave.user.meta.ProtocolMetadata.VER_1_21_3;
 import static org.junit.jupiter.api.Assertions.*;
 
 final class MovementRecordingPhysicsTests {
-	private static final UUID EMPTY_ID = UUID.fromString("00000000-0000-0000-0000-000000000000");
 	private static final double DIVERGED_MOTION_DISTANCE = 0.01;
 
 	@FunctionalInterface
@@ -96,21 +96,6 @@ final class MovementRecordingPhysicsTests {
 			}
 			processRecordingResource(resourcePathOf(recordingPath));
 		}
-	}
-
-	@Test
-	void elytraOnBubblesRecording() throws IOException {
-		processRecordingResource("physics_test_runs/blocks/bubblecolumn/elytra_on_bubbles.ptr");
-	}
-
-	@Test
-	void honeySideJumpRecording() throws IOException {
-		processRecordingResource("physics_test_runs/blocks/honeyblock/honey_side_jump.ptr");
-	}
-
-	@Test
-	void pending8770e919Recording() throws IOException {
-		processRecordingResource("physics_test_runs/pending/8770e919-2080-4e09-99c9-05ade1aede90.ptr");
 	}
 
 	@Test
@@ -216,6 +201,9 @@ final class MovementRecordingPhysicsTests {
 		}
 
 		MoveFrame firstFrame = frames.get(firstPositionFrame);
+		// Versioned recordings contain authoritative state for every received movement packet.
+		boolean hasPerFramePhysicalState = frames.stream()
+			.allMatch(frame -> frame.physicalPose() != null);
 		Position initialPosition = Objects.requireNonNull(firstFrame.moveTo(), "initial position cannot be null");
 		Rotation initialRotation = firstFrame.rotateTo() == null ? Rotation.zero() : firstFrame.rotateTo();
 		AtomicReference<Location> currentLocation = new AtomicReference<>();
@@ -231,7 +219,7 @@ final class MovementRecordingPhysicsTests {
 			metadata.setPose(firstFrame.physicalPose());
 		}
 
-		SimulationSearch processor = new ThreeTickSimulationSearch(false, false);
+		ThreeTickSimulationSearch processor = new ThreeTickSimulationSearch(false, false);
 		List<String> lastMessages = new LinkedList<>();
 
 		for (int tick = firstPositionFrame + 1; tick < frames.size(); tick++) {
@@ -266,8 +254,8 @@ final class MovementRecordingPhysicsTests {
 			Simulator simulator = Simulators.selectFor(metadata);
 			metadata.stepHeight = simulator.stepHeight();
 			metadata.treatThisFlyPacketAsMovePacket = false;
-
-			if (!hasMovement) {
+			if (!hasMovement && (!hasPerFramePhysicalState
+				|| framesUntilNextPosition(frames, tick) <= 2)) {
 				continue;
 			}
 
@@ -279,14 +267,48 @@ final class MovementRecordingPhysicsTests {
 			metadata.stepHeight = simulator.stepHeight();
 			preparePostTickMotionCandidatesForSearch(user, metadata, simulator, previousBaseMotion, preTickMotion);
 
-			Simulation simulation = processor.greedyFullTickSearch(user, metadata.mutableView(), simulator);
-//			Simulation simulation = processor.simulate(user, simulator, hasMovement || hasRotation);
-//			boolean subversiveFlyingMovement = subversiveFlyingMovement(user, simulationEnvironment, simulation, hasMovement);
-//			if (!hasMovement && !hasRotation && !subversiveFlyingMovement) {
-//				metadata.setBaseMotion(previousBaseMotion);
-//				finishTick(user, simulator, metadata, false, false);
-//				continue;
-//			}
+			SimulationEnvironment searchEnvironment = metadata.mutableView();
+			if (!hasMovement) {
+				searchEnvironment.updateMovement(metadata.position(), metadata.rotation());
+			}
+			int precedingFlyingPackets = hasMovement && hasPerFramePhysicalState
+				? Math.min(2, positionlessFramesBefore(frames, tick))
+				: 0;
+			Simulation simulation;
+			if (!hasPerFramePhysicalState) {
+				simulation = processor.greedyFullTickSearch(user, searchEnvironment, simulator);
+			} else if (hasMovement) {
+				simulation = processor.exactFlyingPacketSearch(
+					user, searchEnvironment, simulator, precedingFlyingPackets
+				);
+			} else {
+				simulation = processor.positionlessFlyingPacketSearch(
+					user, searchEnvironment, simulator
+				);
+			}
+			if (hasPerFramePhysicalState && hasMovement && (simulation == Simulation.invalid()
+				|| simulation.positionDifference(metadata.position()) > DIVERGED_MOTION_DISTANCE)) {
+				Simulation genericSimulation = processor.greedyFullTickSearch(
+					user, searchEnvironment, simulator
+				);
+				if (simulation == Simulation.invalid()
+					|| genericSimulation.positionDifference(metadata.position())
+					< simulation.positionDifference(metadata.position())) {
+					simulation = genericSimulation;
+					simulation.appendBlue("exact-fallback:" + precedingFlyingPackets + "f");
+				}
+			} else if (simulation == Simulation.invalid()) {
+				simulation = processor.greedyFullTickSearch(
+					user, searchEnvironment, simulator
+				);
+			}
+			if (!hasMovement) {
+				finishPositionlessTick(
+					user, processor, simulator, metadata, simulation,
+					previousBaseMotion, hasRotation
+				);
+				continue;
+			}
 
 			double loss = simulation.positionDifference(metadata.position());
 			double allowedLoss = DIVERGED_MOTION_DISTANCE;
@@ -308,10 +330,6 @@ final class MovementRecordingPhysicsTests {
 			}
 
 			System.out.print("\r" + output);
-
-//			if (subversiveFlyingMovement) {
-//				simulationEnvironment.reinterpretMovePacket(simulation);
-//			}
 			simulation.environment().commitTo(metadata);
 			metadata.assumeOccurred(simulation);
 			finishTick(user, processor, simulator, metadata, hasMovement, hasRotation);
@@ -322,6 +340,84 @@ final class MovementRecordingPhysicsTests {
 		}
 
 		System.out.println("\r[SUCCESS] " + resourcePath + "...");
+	}
+
+	private static int framesUntilNextPosition(List<MoveFrame> frames, int tick) {
+		for (int nextTick = tick + 1; nextTick < frames.size(); nextTick++) {
+			if (frames.get(nextTick).moveTo() != null) {
+				return nextTick - tick;
+			}
+		}
+		return 0;
+	}
+
+	private static int positionlessFramesBefore(List<MoveFrame> frames, int tick) {
+		int count = 0;
+		for (int previousTick = tick - 1;
+			 previousTick >= 0 && frames.get(previousTick).moveTo() == null;
+			 previousTick--
+		) {
+			count++;
+		}
+		return count;
+	}
+
+	private static void finishPositionlessTick(
+		User user,
+		SimulationSearch processor,
+		Simulator simulator,
+		MovementMetadata metadata,
+		Simulation simulation,
+		Motion previousBaseMotion,
+		boolean hasRotation
+	) {
+		boolean reinterpretedAsMove = simulation.environment().tryMoveReinterpretation(
+			simulation,
+			user.meta().protocol().flyingPacketUncertaintyRadius()
+		);
+		Position recordedPosition = metadata.position();
+		BoundingBox recordedBounds = metadata.boundingBox();
+		if (reinterpretedAsMove) {
+			simulation.environment().commitTo(metadata);
+			metadata.assumeOccurred(simulation);
+		} else {
+			metadata.setSwimming(simulation.environment().isSwimming());
+			metadata.setLastMovementConfiguration(simulation.configuration());
+			List<PostTickSimulation> advancedCandidates = new ArrayList<>();
+			for (PostTickSimulation candidate : metadata.postTickMotionCandidates()) {
+				advancedCandidates.add(new PostTickSimulation(
+					candidate.motion(), simulation.configuration().isSprinting()
+				));
+			}
+			metadata.setPostTickMotionCandidates(advancedCandidates);
+			metadata.setBaseMotion(previousBaseMotion);
+			updateOnGroundIfFlying(user, metadata);
+		}
+		finishTick(user, processor, simulator, metadata, false, hasRotation);
+		if (reinterpretedAsMove) {
+			metadata.setPosition(recordedPosition);
+			metadata.setLastPosition(recordedPosition);
+			metadata.setVerifiedLastPosition(recordedPosition, "positionless recording frame");
+			metadata.setBoundingBox(recordedBounds);
+		}
+	}
+
+	private static void updateOnGroundIfFlying(User user, MovementMetadata metadata) {
+		double physicsMotionX = Math.abs(metadata.baseMotionX) < metadata.resetMotion()
+			? 0.0D : metadata.baseMotionX;
+		double physicsMotionY = Math.abs(metadata.baseMotionY) < metadata.resetMotion()
+			? 0.0D : metadata.baseMotionY;
+		double physicsMotionZ = Math.abs(metadata.baseMotionZ) < metadata.resetMotion()
+			? 0.0D : metadata.baseMotionZ;
+		metadata.onGround = Colliders.simplifiedCollision(
+			user.player(), metadata,
+			metadata.verifiedLastPositionX,
+			metadata.verifiedLastPositionY,
+			metadata.verifiedLastPositionZ,
+			physicsMotionX * 0.91F,
+			(physicsMotionY - 0.08D) * 0.98F,
+			physicsMotionZ * 0.91F
+		).onGround();
 	}
 
 	private static void printFailureReport(
@@ -554,11 +650,12 @@ final class MovementRecordingPhysicsTests {
 		PlaybackBlockCacheView blockCache, World world,
 		AtomicReference<Location> currentLocation
 	) {
+		UUID replayUserId = UUID.randomUUID();
 		Player player = FakePlayerFactory.createPlayer(
 			(methodName, _) -> switch (methodName) {
 				case "getWorld" -> world;
 				case "getLocation" -> currentLocation.get().clone();
-				case "getUniqueId" -> EMPTY_ID;
+				case "getUniqueId" -> replayUserId;
 				case "isOnGround" -> false;
 				default -> null;
 			}

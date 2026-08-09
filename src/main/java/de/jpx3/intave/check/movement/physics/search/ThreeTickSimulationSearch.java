@@ -140,6 +140,131 @@ public final class ThreeTickSimulationSearch implements SimulationSearch {
 		return bestSimulations.simulations();
 	}
 
+	public Simulation exactFlyingPacketSearch(
+		User user,
+		SimulationEnvironment environment,
+		Simulator simulator,
+		int precedingFlyingPackets
+	) {
+		// Recordings know the exact count; production fuzzy search intentionally does not.
+		if (precedingFlyingPackets < 0 || precedingFlyingPackets > 2) {
+			throw new IllegalArgumentException(
+				"precedingFlyingPackets must be between 0 and 2"
+			);
+		}
+
+		Position receivedPosition = environment.position();
+		Position lastReportedPosition = environment.lastPosition();
+		int maxFlyingSimulations = 36;
+		MergingSimulationCollector firstTickContainer = collectSimulations(
+			user, simulator, environment,
+			MergingSimulationCollector.forEnvironment(user, environment, maxFlyingSimulations),
+			simulation -> false
+		);
+		int totalSimulationsDone = firstTickContainer.simulationsDone();
+		if (precedingFlyingPackets == 0) {
+			return finishExactSearch(
+				user, firstTickContainer.bestSimulation(), 0, totalSimulationsDone
+			);
+		}
+
+		Simulation bestSimulation = Simulation.invalid();
+		for (Simulation firstTickSimulation : firstTickContainer.flyingSimulations()) {
+			SimulationEnvironment firstTickEnvironment = firstTickSimulation.environment().mutableView();
+			Simulator secondTickSimulator = simulator.simulateAround(
+				user, firstTickEnvironment, firstTickSimulation,
+				receivedPosition, environment.rotation()
+			);
+			MergingSimulationCollector secondTickContainer = collectSimulations(
+				user, secondTickSimulator, firstTickEnvironment,
+				MergingSimulationCollector.forEnvironmentWithCustomTargets(
+					user, firstTickEnvironment, firstTickEnvironment.sentOffsetMotion(),
+					lastReportedPosition, maxFlyingSimulations
+				),
+				simulation -> false
+			);
+			totalSimulationsDone += secondTickContainer.simulationsDone();
+			if (precedingFlyingPackets == 1) {
+				bestSimulation = bestSimulation.select(
+					secondTickContainer.bestSimulation(), receivedPosition
+				);
+				continue;
+			}
+
+			for (Simulation secondTickFlyingSimulation : secondTickContainer.flyingSimulations()) {
+				SimulationEnvironment secondTickEnvironment = secondTickFlyingSimulation.environment().mutableView();
+				Simulator thirdTickSimulator = secondTickSimulator.simulateAround(
+					user, secondTickEnvironment, secondTickFlyingSimulation,
+					receivedPosition, environment.rotation()
+				);
+				MergingSimulationCollector thirdTickContainer = collectSimulations(
+					user, thirdTickSimulator, secondTickEnvironment,
+					MergingSimulationCollector.forEnvironmentWithCustomTargets(
+						user, secondTickEnvironment, secondTickEnvironment.sentOffsetMotion(),
+						lastReportedPosition, maxFlyingSimulations
+					),
+					simulation -> false
+				);
+				totalSimulationsDone += thirdTickContainer.simulationsDone();
+				bestSimulation = bestSimulation.select(
+					thirdTickContainer.bestSimulation(), receivedPosition
+				);
+			}
+		}
+		return finishExactSearch(
+			user, bestSimulation, precedingFlyingPackets, totalSimulationsDone
+		);
+	}
+
+	public Simulation positionlessFlyingPacketSearch(
+		User user,
+		SimulationEnvironment environment,
+		Simulator simulator
+	) {
+		// A positionless packet may only select a branch below the client's send threshold.
+		MergingSimulationCollector simulations = collectSimulations(
+			user, simulator, environment,
+			MergingSimulationCollector.forEnvironment(user, environment, 36),
+			simulation -> false
+		);
+		Position lastReportedPosition = environment.lastPosition();
+		Simulation bestSimulation = simulations.flyingSimulations().stream()
+			.min(Comparator
+				.comparingDouble((Simulation simulation) ->
+					simulation.positionDifference(lastReportedPosition)
+				)
+				.thenComparing(simulation -> simulation.configuration().toString())
+				.thenComparingDouble(simulation -> simulation.offsetMotion().motionX)
+				.thenComparingDouble(simulation -> simulation.offsetMotion().motionY)
+				.thenComparingDouble(simulation -> simulation.offsetMotion().motionZ)
+			)
+			.orElse(Simulation.invalid());
+		if (bestSimulation == Simulation.invalid()) {
+			return bestSimulation;
+		}
+		bestSimulation.appendBlue("pf/" + simulations.simulationsDone() + "es");
+		applySimulation(user, bestSimulation);
+		user.meta().movement().simulationRateLimiter.noteAcquired(simulations.simulationsDone());
+		return bestSimulation;
+	}
+
+	private Simulation finishExactSearch(
+		User user,
+		Simulation simulation,
+		int precedingFlyingPackets,
+		int totalSimulationsDone
+	) {
+		if (simulation == Simulation.invalid()) {
+			return simulation;
+		}
+		simulation.appendBlue(
+			precedingFlyingPackets + "f/" + totalSimulationsDone + "es"
+		);
+		applySimulation(user, simulation);
+		user.meta().movement().simulationRateLimiter.noteAcquired(totalSimulationsDone);
+		return simulation;
+	}
+
 	@Override
 	public Simulation tickSearch(
 		User user, SimulationEnvironment movementData,

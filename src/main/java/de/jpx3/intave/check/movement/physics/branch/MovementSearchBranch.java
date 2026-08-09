@@ -113,7 +113,6 @@ public final class MovementSearchBranch {
 
 	public MovementSearchBranch withRotation(Rotation rotation) {
 		return modifyAfter(env -> {
-			env = env.mutableView();
 			env.setRotation(rotation);
 			return env;
 		}, ROTATION, 0);
@@ -229,6 +228,13 @@ public final class MovementSearchBranch {
 			return env.mutableView();
 		}
 		return environmentModifier.apply(env.mutableView());
+	}
+
+	SimulationEnvironment modifiedImmutableView(MovementSearchInput input) {
+		if (!environmentModifierApplied) {
+			return input.environment();
+		}
+		return input.modifiedImmutableEnvironment(environmentModifier);
 	}
 
 	public SimulationEnvironment modifiedImmutableView(SimulationEnvironment env) {

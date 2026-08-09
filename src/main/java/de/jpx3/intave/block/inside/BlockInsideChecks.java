@@ -57,17 +57,18 @@ public final class BlockInsideChecks {
 		int protocolVersion,
 		MovementConfiguration configuration
 	) {
-		if (protocolVersion == ProtocolMetadata.VER_1_21_9 &&
-			configuration.usesAlternateBlockInsideCheck()) {
-			return V21_9;
+		if (protocolVersion == ProtocolMetadata.VER_1_21_9) {
+			return configuration.usesAlternateBlockInsideCheck() ? V21_9 : V21_10;
 		}
 		return suitableForProtocol(protocolVersion).get(0);
 	}
 
 	static List<BlockInsideCheck> suitableForProtocol(int protocolVersion) {
-		if (protocolVersion >= ProtocolMetadata.VER_1_21_9) {
-			// 1.21.9 and 1.21.10 share protocol 773. Preserve the current 1.21.10 behavior.
-			return Arrays.asList(V21_10, V21_9);
+		if (protocolVersion > ProtocolMetadata.VER_1_21_9) {
+			return Collections.singletonList(V21_10);
+		} else if (protocolVersion == ProtocolMetadata.VER_1_21_9) {
+			// 1.21.9 and 1.21.10 share protocol 773. Default to 1.21.10 and branch to 1.21.9.
+			return Arrays.asList(V21_9, V21_10);
 		} else if (protocolVersion >= ProtocolMetadata.VER_1_21_6) {
 			return Collections.singletonList(V21_6);
 		} else if (protocolVersion >= ProtocolMetadata.VER_1_21_5) {

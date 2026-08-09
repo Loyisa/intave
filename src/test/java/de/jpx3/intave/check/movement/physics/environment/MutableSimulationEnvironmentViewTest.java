@@ -103,6 +103,36 @@ final class MutableSimulationEnvironmentViewTest {
   }
 
   @Test
+  void metricReadsFollowDelegateUntilOverridden() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    SimulationEnvironment view = delegate.mutableView();
+
+    assertEquals(0, view.ticks(MoveMetric.IN_WATER));
+    assertEquals(100, view.ticksPast(MoveMetric.IN_WATER));
+
+    delegate.activeTick(MoveMetric.IN_WATER);
+    assertEquals(1, view.ticks(MoveMetric.IN_WATER));
+    assertEquals(0, view.ticksPast(MoveMetric.IN_WATER));
+
+    view.inactiveTick(MoveMetric.IN_WATER);
+    delegate.inactiveTick(MoveMetric.IN_WATER);
+    delegate.inactiveTick(MoveMetric.IN_WATER);
+
+    assertEquals(0, view.ticks(MoveMetric.IN_WATER));
+    assertEquals(1, view.ticksPast(MoveMetric.IN_WATER));
+    assertEquals(2, delegate.ticksPast(MoveMetric.IN_WATER));
+  }
+
+  @Test
+  void immutableViewIsReusedAndUnmodifiedViewCanCommit() {
+    MockSimulationEnvironment delegate = new MockSimulationEnvironment();
+    SimulationEnvironment view = delegate.mutableView();
+
+    assertSame(view.immutableView(), view.immutableView());
+    assertDoesNotThrow(() -> view.commitTo(delegate));
+  }
+
+  @Test
   void motionMultiplierIsIsolatedAndCommitted() {
     MockSimulationEnvironment delegate = new MockSimulationEnvironment();
     delegate.setMotionMultiplier(new Vector(1.0, 1.0, 1.0));

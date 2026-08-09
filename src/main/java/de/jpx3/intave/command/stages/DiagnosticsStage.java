@@ -423,12 +423,23 @@ public final class DiagnosticsStage extends CommandStage {
       }
       boolean suspicious = timing.averageCallDurationInMillis() > 0.5d;
       boolean dumping = timing.averageCallDurationInMillis() > 1.5d;
-      String message = String.format("%s: %s::%sms (%s&f ms/c)", timing.coloredName(), timing.recordedCalls(), MathHelper.formatDouble(timing.totalDurationMillis(), 4), (suspicious ? (dumping ? ChatColor.RED : ChatColor.YELLOW) : ChatColor.GREEN) + "" + MathHelper.formatDouble(timing.averageCallDurationInMillis(), 8));
+      String message = String.format("%s: %s::%sms (%s&f ms/c, p99 %sms)", timing.coloredName(), timing.recordedCalls(), MathHelper.formatDouble(timing.totalDurationMillis(), 4), (suspicious ? (dumping ? ChatColor.RED : ChatColor.YELLOW) : ChatColor.GREEN) + "" + MathHelper.formatDouble(timing.averageCallDurationInMillis(), 8), MathHelper.formatDouble(timing.p99CallDurationInMillis(), 8));
       if (!fullSpecifier.isEmpty() && !timing.name().toLowerCase(Locale.ROOT).contains(fullSpecifier)) {
         message = IntavePlugin.defaultColor() + ChatColor.stripColor(message);
       }
-      player.sendMessage(ChatColor.translateAlternateColorCodes('&', message));
+      TimingChatOutput.sendSelectableTiming(player, timing, message, "/intave diagnostics histogram ");
     });
+  }
+
+  @SubCommand(
+    selectors = "histogram",
+    usage = "<timing>",
+    description = "Output the duration histogram for a timing",
+    permission = "intave.command.diagnostics.performance",
+    hideInHelp = true
+  )
+  public void histogramCommand(User user, String[] timingName) {
+    TimingChatOutput.sendHistogram(user.player(), timingName);
   }
 
   @SubCommand(

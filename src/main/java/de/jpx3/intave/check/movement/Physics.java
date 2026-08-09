@@ -51,6 +51,7 @@ import de.jpx3.intave.diagnostic.KeyPressStudy;
 import de.jpx3.intave.diagnostic.message.DebugBroadcast;
 import de.jpx3.intave.diagnostic.message.MessageSeverity;
 import de.jpx3.intave.diagnostic.timings.Timings;
+import de.jpx3.intave.executor.BackgroundExecutors;
 import de.jpx3.intave.executor.Synchronizer;
 import de.jpx3.intave.math.MathHelper;
 import de.jpx3.intave.module.Modules;
@@ -1308,11 +1309,14 @@ public final class Physics extends Check {
   }
 
   private void sendPacketWithExperience(Player player, int level) {
-    PacketContainer packet = ProtocolLibrary.getProtocolManager().createPacket(PacketType.Play.Server.EXPERIENCE);
-    packet.getFloat().write(0, 0f);
-    packet.getIntegers().write(0, 0);
-    packet.getIntegers().write(1, level);
-    PacketSender.sendServerPacket(player, packet);
+    BackgroundExecutors.execute(() -> {
+      PacketContainer packet = ProtocolLibrary.getProtocolManager().createPacket(PacketType.Play.Server.EXPERIENCE);
+      packet.getFloat().write(0, 0f);
+      packet.getIntegers().write(0, 0);
+      packet.getIntegers().write(1, level);
+      Synchronizer.synchronize(() ->
+        PacketSender.sendServerPacket(player, packet));
+    });
   }
 
   private void refreshNearbyBlocks(User user, double x, double y, double z) {

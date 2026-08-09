@@ -21,7 +21,7 @@ final class AttackReduceBrancher extends MovementSearchBrancher {
 
   @Override
   public void branch(MovementSearchInput input, MovementSearchBranch inputBranch, Collection<MovementSearchBranch> outputBranches) {
-    SimulationEnvironment environment = inputBranch.modifiedImmutableView(input.environment());
+    SimulationEnvironment environment = inputBranch.modifiedImmutableView(input);
     int reduceTicks = environment.reduceTicks();
     if (reduceTicks == 0) {
       outputBranches.add(inputBranch.withReduceTicks(0).withReduceBefore(false));

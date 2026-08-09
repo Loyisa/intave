@@ -136,12 +136,10 @@ public final class ProtocolMetadata {
     this.clientBrand = clientBrand;
   }
 
-  private static final boolean SERVER_DROPPED_FLYING_PACKETS = MinecraftVersions.VER1_9_0.atOrAbove();
-
   public boolean emptyFlyingPacketsAreExplicitlySent() {
     // flying packets are guaranteed in 1.8 and below, removed in 1.9
     // but if the server is 1.9+, via version/backwards will drop them even for 1.8 clients
-    return protocolVersion <= VER_1_8 && !SERVER_DROPPED_FLYING_PACKETS;
+    return protocolVersion <= VER_1_8 && !MinecraftVersions.VER1_9_0.atOrAbove();
   }
 
   public boolean supportsInventoryAchievementPacket() {
