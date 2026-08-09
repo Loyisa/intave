@@ -16,6 +16,7 @@ import de.jpx3.intave.share.*;
 import de.jpx3.intave.user.User;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import org.bukkit.Material;
 
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -71,10 +72,14 @@ public class v219BlockInsideCheck extends BlockInsideCheck {
 				return false;
 			}
 			scanned.set(scannedBlocks);
-			if (visitedBlocks.add(position.asLong())) {
+			BlockPosition blockPosition = position.toBlockPosition();
+			Material material = materialAt(user, blockPosition);
+			if (!isAir(material)
+				&& intersectsEntityInsideShape(user, environment, material, blockPosition, from, to)
+				&& visitedBlocks.add(position.asLong())) {
 				applyBlockEffect(
-					user, environment, motion, position.toBlockPosition(), from,
-					insideBlockOrTooFast(from, to, box, position)
+					user, environment, motion, blockPosition, from,
+					insideBlockOrTooFast(from, to, box, position), material
 				);
 			}
 			return true;

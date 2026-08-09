@@ -13,6 +13,8 @@ package de.jpx3.intave.block.physics;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.annotate.Nullable;
+import de.jpx3.intave.block.shape.BlockShape;
+import de.jpx3.intave.block.shape.BlockShapes;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
@@ -32,6 +34,14 @@ public interface BlockPhysic {
     Motion motion, boolean insideBlockOrTooFast
   ) {
     return null;
+  }
+
+  default BlockShape entityInsideCollisionShape(
+    User user,
+    SimulationEnvironment environment,
+    BlockPosition position
+  ) {
+    return BlockShapes.cubeAt(position.getBlockX(), position.getBlockY(), position.getBlockZ());
   }
 
   default @Nullable Motion stepOn(User user, SimulationEnvironment environment, double motionX, double motionY, double motionZ) {

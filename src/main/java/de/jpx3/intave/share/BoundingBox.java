@@ -996,9 +996,18 @@ public final class BoundingBox extends MemoryTraced implements BlockShape {
   }
 
   public static Optional<Vec3> clip(
-    double p_368264_, double p_369692_, double p_366920_, double p_361220_, double p_363635_, double p_362259_, Vec3 p_361125_, Vec3 p_369663_
+    double minX, double minY, double minZ,
+    double maxX, double maxY, double maxZ,
+    Vec3 from, Vec3 to
   ) {
-    return Optional.empty();
+    Position fromPosition = Position.of(from.x, from.y, from.z);
+    Position toPosition = Position.of(to.x, to.y, to.z);
+    return clip(
+      minX, minY, minZ, maxX, maxY, maxZ,
+      fromPosition, toPosition
+    ).map(position -> new Vec3(
+      position.getX(), position.getY(), position.getZ()
+    ));
   }
 
   public BoundingBox move(Motion motion) {

@@ -29,6 +29,16 @@ public final class PowderSnowCollisionModifier extends CollisionModifier {
     User user, SimulationEnvironment environment, BoundingBox userBox,
     int posX, int posY, int posZ, BlockShape shape, CollisionOrigin type
   ) {
+    return collisionShape(user, environment, posX, posY, posZ);
+  }
+
+  public static BlockShape collisionShape(
+    User user,
+    SimulationEnvironment environment,
+    int posX,
+    int posY,
+    int posZ
+  ) {
     if (environment.fallDistance() > 2.5) {
       return FALLING_SHAPE.contextualized(posX, posY, posZ);
     }

@@ -13,6 +13,8 @@ package de.jpx3.intave.block.physics;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.annotate.Nullable;
+import de.jpx3.intave.block.shape.BlockShape;
+import de.jpx3.intave.block.shape.BlockShapes;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
@@ -82,6 +84,18 @@ public final class BlockPhysics {
 			);
 		}
 		return null;
+	}
+
+	public static BlockShape entityInsideCollisionShape(
+		User user,
+		Material material,
+		SimulationEnvironment environment,
+		BlockPosition position
+	) {
+		BlockPhysic physic = physicLookup(material);
+		return physic == null
+			? BlockShapes.cubeAt(position.getBlockX(), position.getBlockY(), position.getBlockZ())
+			: physic.entityInsideCollisionShape(user, environment, position);
 	}
 
 	@Nullable

@@ -13,13 +13,14 @@ package de.jpx3.intave.block.physics;
 
 import de.jpx3.intave.adapter.MinecraftVersion;
 import de.jpx3.intave.block.access.VolatileBlockAccess;
+import de.jpx3.intave.block.fluid.Fluid;
+import de.jpx3.intave.block.shape.BlockShape;
 import de.jpx3.intave.block.variant.BlockVariant;
 import de.jpx3.intave.check.movement.physics.environment.SimulationEnvironment;
 import de.jpx3.intave.share.BlockPosition;
 import de.jpx3.intave.share.Motion;
 import de.jpx3.intave.share.Position;
 import de.jpx3.intave.user.User;
-import de.jpx3.intave.user.meta.MovementMetadata;
 import de.jpx3.intave.user.meta.ProtocolMetadata;
 import org.bukkit.Material;
 
@@ -48,26 +49,52 @@ final class BubbleColumnPhysics implements BlockPhysic {
   ) {
     ProtocolMetadata protocol = user.meta().protocol();
     if (protocol.aquaticUpdate() && insideBlockOrTooFast) {
-      boolean water = VolatileBlockAccess.fluidAccess(user, blockPosition.above()).isOfWater();
+      BlockPosition above = blockPosition.above();
+      Material materialAbove = VolatileBlockAccess.typeAccess(user, above);
+      Fluid fluidAbove = VolatileBlockAccess.fluidAccess(user, above);
+      BlockShape collisionShapeAbove = VolatileBlockAccess.collisionShapeAccess(user, above);
+      boolean openSurface = openSurfaceAbove(
+        protocol, materialAbove, fluidAbove.isDry(), collisionShapeAbove.isEmpty()
+      );
       BlockVariant variant = VolatileBlockAccess.variantAccess(user, blockPosition);
       boolean downwards = variant.propertyOf("drag");
-      if (water) {
-        return enterBubbleColumn(user, downwards, motion.motionX, motion.motionY, motion.motionZ);
-      } else {
+      if (openSurface) {
         return enterBubbleColumnWithAirAbove(downwards, motion.motionX, motion.motionY, motion.motionZ);
+      } else {
+        return enterBubbleColumn(environment, downwards, motion.motionX, motion.motionY, motion.motionZ);
       }
     }
     return null;
   }
 
-  private Motion enterBubbleColumn(User user, boolean downwards, double motionX, double motionY, double motionZ) {
-    MovementMetadata movementData = user.meta().movement();
+  static boolean openSurfaceAbove(
+    ProtocolMetadata protocol,
+    Material materialAbove,
+    boolean fluidAboveIsDry,
+    boolean collisionShapeAboveIsEmpty
+  ) {
+    if (protocol.bubbleColumnSurfaceUsesCollisionAndFluid()) {
+      return collisionShapeAboveIsEmpty && fluidAboveIsDry;
+    }
+    String materialName = materialAbove.name();
+    return materialAbove == Material.AIR
+      || materialName.equals("CAVE_AIR")
+      || materialName.equals("VOID_AIR");
+  }
+
+  Motion enterBubbleColumn(
+    SimulationEnvironment environment,
+    boolean downwards,
+    double motionX,
+    double motionY,
+    double motionZ
+  ) {
     if (downwards) {
       motionY = Math.max(-0.3D, motionY - 0.03D);
     } else {
       motionY = Math.min(0.7D, motionY + 0.06D);
     }
-    movementData.artificialFallDistance = 0;
+    environment.resetFallDistance();
     return new Motion(motionX, motionY, motionZ);
   }
 

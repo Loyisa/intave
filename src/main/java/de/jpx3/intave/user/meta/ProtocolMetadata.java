@@ -282,6 +282,14 @@ public final class ProtocolMetadata {
 		return protocolVersion >= VER_1_21_5;
 	}
 
+	public boolean bubbleColumnSurfaceUsesCollisionAndFluid() {
+		return protocolVersion >= VER_1_21_5;
+	}
+
+	public boolean powderSnowInsideShapeUsesCollisionContext() {
+		return protocolVersion >= VER_1_21_5;
+	}
+
   public boolean newBlockEntityIntersectionLogic() {
     return protocolVersion >= VER_1_21_3;
   }

@@ -17,6 +17,7 @@ import de.jpx3.intave.share.*;
 import de.jpx3.intave.user.User;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import it.unimi.dsi.fastutil.longs.LongSet;
+import org.bukkit.Material;
 
 import java.util.List;
 import java.util.Optional;
@@ -63,8 +64,12 @@ public class v212BlockInsideCheck extends BlockInsideCheck {
 		BoundingBox box
 	) {
 		forEachBlockIntersectedBetween(from, to, box, usesTravelEpsilon(), (position, scannedBlocks) -> {
-			if (visitedBlocks.add(position.asLong())) {
-				applyBlockEffect(user, environment, motion, position.toBlockPosition(), from, true);
+			BlockPosition blockPosition = position.toBlockPosition();
+			Material material = materialAt(user, blockPosition);
+			if (!isAir(material)
+				&& visitedBlocks.add(position.asLong())
+				&& intersectsEntityInsideShape(user, environment, material, blockPosition, from, to)) {
+				applyBlockEffect(user, environment, motion, blockPosition, from, true, material);
 			}
 			return true;
 		});
