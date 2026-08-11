@@ -227,6 +227,10 @@ public final class ProtocolMetadata {
     return protocolVersion >= VER_1_17;
   }
 
+  public boolean fireworkBoostTicksAfterPlayer() {
+    return protocolVersion >= VER_1_17;
+  }
+
   public boolean useItemMovementPacket() {
     return protocolVersion >= VER_1_17 && protocolVersion <= VER_1_21_5;
   }
