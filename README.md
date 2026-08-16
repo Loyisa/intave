@@ -7,7 +7,7 @@ After almost a decade of use on the world's largest Minecraft servers, we decide
 Intave source-available to everyone.
 
 ## Downloads
-- [Auto Loader](https://github.com/intave/loader/releases/download/v1.0.1/IntaveLoader.jar) (Recommended)
+- [Auto Loader](https://github.com/intave/loader/releases/download/1.0.1/IntaveLoader.jar) (Recommended)
 - [Nightly Build](https://github.com/intave/intave/releases/download/nightly/Intave.jar)
 - [Modrinth](https://modrinth.com/plugin/intave)
 
