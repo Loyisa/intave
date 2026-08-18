@@ -83,4 +83,17 @@ public final class EffectMetadata {
   public void potionEffectJumpAmplifier(int potionEffectJumpAmplifier) {
     this.potionEffectJumpAmplifier = potionEffectJumpAmplifier;
   }
+
+  public void restoreRecordedState(
+    int speedAmplifier, int speedDuration,
+    int slownessAmplifier, int slownessDuration,
+    int jumpAmplifier, int jumpDuration
+  ) {
+    this.potionEffectSpeedAmplifier = speedAmplifier;
+    this.potionEffectSpeedDuration = speedDuration;
+    this.potionEffectSlownessAmplifier = slownessAmplifier;
+    this.potionEffectSlownessDuration = slownessDuration;
+    this.potionEffectJumpAmplifier = jumpAmplifier;
+    this.potionEffectJumpDuration = jumpDuration;
+  }
 }

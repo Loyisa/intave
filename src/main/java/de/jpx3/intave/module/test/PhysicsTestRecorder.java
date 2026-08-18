@@ -17,6 +17,7 @@ import de.jpx3.intave.annotate.Nullable;
 import de.jpx3.intave.module.Module;
 import de.jpx3.intave.module.linker.packet.PacketId;
 import de.jpx3.intave.module.linker.packet.PacketSubscription;
+import de.jpx3.intave.module.test.record.MovementFrameState;
 import de.jpx3.intave.module.test.record.MovementRecording;
 import de.jpx3.intave.module.test.record.TickRange;
 import de.jpx3.intave.module.test.record.action.ReceiveVelocity;
@@ -76,7 +77,8 @@ public final class PhysicsTestRecorder extends Module {
 				user.blockCache(),
 				user.meta().abilities().attributeSnapshot(),
 				movement.gliding,
-				movement.pose()
+				movement.pose(),
+				MovementFrameState.capture(user)
 			);
 
 			ActionBar.sendActionBar(
